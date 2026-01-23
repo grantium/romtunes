@@ -59,6 +59,10 @@
         </div>
 
         <div class="toolbar-actions">
+          <button class="btn-sync" id="sync-btn" title="Sync to Device">
+            🔄 Sync
+          </button>
+
           <select id="sort-select" class="sort-select">
             <option value="name">Name</option>
             <option value="system">System</option>
@@ -74,6 +78,10 @@
               ☰
             </button>
           </div>
+
+          <button class="btn-settings" id="settings-btn" title="Settings">
+            ⚙️
+          </button>
         </div>
       </div>
 
@@ -110,6 +118,149 @@
     <p id="loading-text">Loading...</p>
   </div>
 
+  <!-- Settings Modal -->
+  <div class="modal" id="settings-modal">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2>Settings</h2>
+        <button class="modal-close" id="settings-close">✕</button>
+      </div>
+
+      <div class="modal-tabs">
+        <button class="tab-btn active" data-tab="sync">Sync Profiles</button>
+        <button class="tab-btn" data-tab="artwork">Artwork</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Sync Profiles Tab -->
+        <div class="tab-content active" id="sync-tab">
+          <p class="tab-description">
+            Configure sync profiles for different handheld devices. Set the base path and customize folder mappings for each system.
+          </p>
+
+          <div id="profiles-container"></div>
+        </div>
+
+        <!-- Artwork Tab -->
+        <div class="tab-content" id="artwork-tab">
+          <p class="tab-description">
+            Configure artwork settings and types to display in your library.
+          </p>
+
+          <div class="setting-group">
+            <label class="setting-label">
+              <input type="checkbox" id="artwork-enabled" checked />
+              Enable Artwork Display
+            </label>
+          </div>
+
+          <div class="setting-group">
+            <label class="setting-label">Default Artwork Type</label>
+            <select id="artwork-default-type" class="setting-select">
+              <option value="boxart">Box Art</option>
+              <option value="screenshot">Screenshot</option>
+              <option value="banner">Banner</option>
+              <option value="fanart">Fan Art</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" id="settings-cancel">Cancel</button>
+        <button class="btn-primary" id="settings-save">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sync Modal -->
+  <div class="modal" id="sync-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Sync ROMs to Device</h2>
+        <button class="modal-close" id="sync-close">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="setting-group">
+          <label class="setting-label">Select Device Profile</label>
+          <select id="sync-profile-select" class="setting-select"></select>
+        </div>
+
+        <div class="sync-options">
+          <label class="setting-label">
+            <input type="checkbox" id="sync-artwork-check" />
+            Sync Artwork
+          </label>
+        </div>
+
+        <div id="sync-status" class="sync-status"></div>
+        <div id="sync-progress-container" class="sync-progress" style="display: none;">
+          <div class="progress-bar">
+            <div class="progress-fill" id="sync-progress-bar"></div>
+          </div>
+          <p id="sync-progress-text">Preparing...</p>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" id="sync-cancel">Cancel</button>
+        <button class="btn-primary" id="sync-start">Start Sync</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROM Detail Modal -->
+  <div class="modal" id="rom-detail-modal">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2 id="rom-detail-title">ROM Details</h2>
+        <button class="modal-close" id="rom-detail-close">✕</button>
+      </div>
+
+      <div class="modal-body rom-detail-body">
+        <div class="rom-detail-artwork">
+          <div class="artwork-display" id="rom-artwork-display">
+            <div class="artwork-placeholder">🎮</div>
+          </div>
+          <div class="artwork-actions">
+            <button class="btn-small" id="import-boxart">Import Box Art</button>
+            <button class="btn-small" id="import-screenshot">Import Screenshot</button>
+          </div>
+        </div>
+
+        <div class="rom-detail-info">
+          <div class="detail-field">
+            <label>Name:</label>
+            <span id="detail-name"></span>
+          </div>
+          <div class="detail-field">
+            <label>System:</label>
+            <span id="detail-system"></span>
+          </div>
+          <div class="detail-field">
+            <label>File:</label>
+            <span id="detail-filename"></span>
+          </div>
+          <div class="detail-field">
+            <label>Size:</label>
+            <span id="detail-size"></span>
+          </div>
+          <div class="detail-field">
+            <label>Path:</label>
+            <span id="detail-path" class="detail-path"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-danger" id="rom-delete">Delete ROM</button>
+        <button class="btn-secondary" id="rom-detail-cancel">Close</button>
+      </div>
+    </div>
+  </div>
+
   <script src="renderer.js"></script>
+  <script src="settings.js"></script>
 </body>
 </html>

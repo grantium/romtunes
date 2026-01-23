@@ -2,9 +2,13 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
 const Database = require('./database');
+const ConfigManager = require('./config');
+const SyncManager = require('./sync');
 
 let mainWindow;
 let db;
+let config;
+let syncManager;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -30,8 +34,13 @@ function createWindow() {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  config = new ConfigManager();
+  await config.init();
+
   db = new Database();
+  syncManager = new SyncManager(config, db);
+
   createWindow();
 
   app.on('activate', function () {
@@ -157,4 +166,101 @@ ipcMain.handle('update-rom', async (event, id, updates) => {
 
 ipcMain.handle('get-stats', async () => {
   return db.getStats();
+});
+
+// Config Handlers
+ipcMain.handle('get-config', async (event, key) => {
+  return config.get(key);
+});
+
+ipcMain.handle('set-config', async (event, key, value) => {
+  return config.set(key, value);
+});
+
+ipcMain.handle('get-sync-profiles', async () => {
+  return config.getSyncProfiles();
+});
+
+ipcMain.handle('update-sync-profile', async (event, profileId, updates) => {
+  return config.updateSyncProfile(profileId, updates);
+});
+
+ipcMain.handle('add-system-mapping', async (event, profileId, system, folder) => {
+  return config.addCustomSystemMapping(profileId, system, folder);
+});
+
+// Artwork Handlers
+ipcMain.handle('select-image', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    filters: [
+      { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'] }
+    ]
+  });
+
+  if (!result.canceled && result.filePaths.length > 0) {
+    return result.filePaths[0];
+  }
+  return null;
+});
+
+ipcMain.handle('import-artwork', async (event, romId, artworkType, sourcePath) => {
+  try {
+    const destPath = await config.importArtwork(romId, artworkType, sourcePath);
+
+    // Update database
+    const updates = {};
+    updates[artworkType] = destPath;
+    db.updateRom(romId, updates);
+
+    return { success: true, path: destPath };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('delete-artwork', async (event, romId, artworkType) => {
+  try {
+    await config.deleteArtwork(romId, artworkType);
+
+    // Update database
+    const updates = {};
+    updates[artworkType] = null;
+    db.updateRom(romId, updates);
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-artwork-path', async (event, romId, artworkType) => {
+  const artPath = config.getArtworkPath(romId, artworkType);
+  const exists = await config.artworkExists(romId, artworkType);
+  return exists ? artPath : null;
+});
+
+// Sync Handlers
+ipcMain.handle('sync-roms', async (event, profileId, romIds = null) => {
+  let lastProgress = null;
+
+  const result = await syncManager.syncRoms(profileId, romIds, (progress) => {
+    lastProgress = progress;
+    // Send progress to renderer
+    mainWindow.webContents.send('sync-progress', progress);
+  });
+
+  return result;
+});
+
+ipcMain.handle('sync-artwork', async (event, profileId, romIds = null, artworkTypes = ['boxart']) => {
+  return syncManager.syncArtwork(profileId, romIds, artworkTypes);
+});
+
+ipcMain.handle('verify-sync', async (event, profileId) => {
+  return syncManager.verifySync(profileId);
+});
+
+ipcMain.handle('get-sync-status', async () => {
+  return syncManager.getSyncStatus();
 });

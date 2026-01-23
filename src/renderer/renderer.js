@@ -160,16 +160,23 @@ function renderRoms() {
 }
 
 // Render Grid View
-function renderGridView() {
+async function renderGridView() {
   const grid = document.createElement('div');
   grid.className = 'rom-grid';
 
-  roms.forEach(rom => {
+  for (const rom of roms) {
     const card = document.createElement('div');
     card.className = 'rom-card';
+
+    // Check for artwork
+    const artworkPath = rom.boxart ? `file://${rom.boxart}` : null;
+    const coverContent = artworkPath
+      ? `<img src="${artworkPath}" alt="${rom.name}" />`
+      : getSystemIcon(rom.system);
+
     card.innerHTML = `
       <div class="rom-cover">
-        ${getSystemIcon(rom.system)}
+        ${coverContent}
         <div class="rom-favorite ${rom.favorite ? 'active' : ''}" data-id="${rom.id}">
           ${rom.favorite ? '⭐' : '☆'}
         </div>
@@ -188,8 +195,13 @@ function renderGridView() {
       await toggleFavorite(rom.id, !rom.favorite);
     });
 
+    // Add click handler to open detail modal
+    card.addEventListener('click', () => {
+      openRomDetail(rom);
+    });
+
     grid.appendChild(card);
-  });
+  }
 
   romContainer.innerHTML = '';
   romContainer.appendChild(grid);
@@ -221,6 +233,11 @@ function renderListView() {
     favoriteBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       await toggleFavorite(rom.id, !rom.favorite);
+    });
+
+    // Add click handler to open detail modal
+    row.addEventListener('click', () => {
+      openRomDetail(rom);
     });
 
     list.appendChild(row);
@@ -277,6 +294,95 @@ function showLoading(text = 'Loading...') {
 // Hide Loading
 function hideLoading() {
   loadingOverlay.classList.remove('active');
+}
+
+// ROM Detail Modal
+let currentRom = null;
+const romDetailModal = document.getElementById('rom-detail-modal');
+const romDetailClose = document.getElementById('rom-detail-close');
+const romDetailCancel = document.getElementById('rom-detail-cancel');
+const romDeleteBtn = document.getElementById('rom-delete');
+const importBoxartBtn = document.getElementById('import-boxart');
+const importScreenshotBtn = document.getElementById('import-screenshot');
+
+romDetailClose.addEventListener('click', closeRomDetail);
+romDetailCancel.addEventListener('click', closeRomDetail);
+romDeleteBtn.addEventListener('click', deleteCurrentRom);
+importBoxartBtn.addEventListener('click', () => importArtwork('boxart'));
+importScreenshotBtn.addEventListener('click', () => importArtwork('screenshot'));
+
+async function openRomDetail(rom) {
+  currentRom = rom;
+
+  // Set basic info
+  document.getElementById('rom-detail-title').textContent = rom.name;
+  document.getElementById('detail-name').textContent = rom.name;
+  document.getElementById('detail-system').textContent = rom.system;
+  document.getElementById('detail-filename').textContent = rom.filename;
+  document.getElementById('detail-size').textContent = formatBytes(rom.size);
+  document.getElementById('detail-path').textContent = rom.path;
+
+  // Load and display artwork
+  await loadRomArtwork(rom.id);
+
+  romDetailModal.classList.add('active');
+}
+
+function closeRomDetail() {
+  romDetailModal.classList.remove('active');
+  currentRom = null;
+}
+
+async function loadRomArtwork(romId) {
+  const artworkDisplay = document.getElementById('rom-artwork-display');
+  const artPath = await window.electronAPI.getArtworkPath(romId, 'boxart');
+
+  if (artPath) {
+    artworkDisplay.innerHTML = `<img src="file://${artPath}" alt="Box Art" />`;
+  } else {
+    artworkDisplay.innerHTML = '<div class="artwork-placeholder">🎮</div>';
+  }
+}
+
+async function importArtwork(artworkType) {
+  if (!currentRom) return;
+
+  const imagePath = await window.electronAPI.selectImage();
+
+  if (imagePath) {
+    showLoading('Importing artwork...');
+
+    const result = await window.electronAPI.importArtwork(
+      currentRom.id,
+      artworkType,
+      imagePath
+    );
+
+    hideLoading();
+
+    if (result.success) {
+      // Reload ROM data and artwork
+      await loadRomArtwork(currentRom.id);
+      await loadRoms();
+
+      alert('Artwork imported successfully!');
+    } else {
+      alert(`Error importing artwork: ${result.error}`);
+    }
+  }
+}
+
+async function deleteCurrentRom() {
+  if (!currentRom) return;
+
+  const confirmed = confirm(`Are you sure you want to delete "${currentRom.name}" from your library?\n\nNote: This will only remove it from the library, not delete the file.`);
+
+  if (confirmed) {
+    await window.electronAPI.deleteRom(currentRom.id);
+    closeRomDetail();
+    await loadRoms();
+    await updateStats();
+  }
 }
 
 // Initialize the app

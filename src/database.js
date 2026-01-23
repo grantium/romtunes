@@ -25,13 +25,49 @@ class RomDatabase {
         lastPlayed TEXT,
         playCount INTEGER DEFAULT 0,
         favorite INTEGER DEFAULT 0,
-        rating INTEGER DEFAULT 0
+        rating INTEGER DEFAULT 0,
+        boxart TEXT,
+        screenshot TEXT,
+        banner TEXT,
+        fanart TEXT,
+        synced INTEGER DEFAULT 0,
+        lastSynced TEXT
       );
 
       CREATE INDEX IF NOT EXISTS idx_system ON roms(system);
       CREATE INDEX IF NOT EXISTS idx_name ON roms(name);
       CREATE INDEX IF NOT EXISTS idx_favorite ON roms(favorite);
     `);
+
+    // Migrate existing database if needed
+    this.migrateSchema();
+  }
+
+  migrateSchema() {
+    // Check if artwork columns exist, add them if not
+    const columns = this.db.prepare("PRAGMA table_info(roms)").all();
+    const columnNames = columns.map(c => c.name);
+
+    const newColumns = [
+      'boxart TEXT',
+      'screenshot TEXT',
+      'banner TEXT',
+      'fanart TEXT',
+      'synced INTEGER DEFAULT 0',
+      'lastSynced TEXT'
+    ];
+
+    for (const col of newColumns) {
+      const colName = col.split(' ')[0];
+      if (!columnNames.includes(colName)) {
+        try {
+          this.db.exec(`ALTER TABLE roms ADD COLUMN ${col}`);
+        } catch (error) {
+          // Column might already exist
+          console.log(`Column ${colName} already exists or error:`, error.message);
+        }
+      }
+    }
   }
 
   addRom(rom) {
