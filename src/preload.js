@@ -3,7 +3,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   // ROM Operations
   selectFolder: () => ipcRenderer.invoke('select-folder'),
+  selectFiles: () => ipcRenderer.invoke('select-files'),
   scanRoms: (folderPath) => ipcRenderer.invoke('scan-roms', folderPath),
+  importFiles: (filePaths) => ipcRenderer.invoke('import-files', filePaths),
   getRoms: (filters) => ipcRenderer.invoke('get-roms', filters),
   getSystems: () => ipcRenderer.invoke('get-systems'),
   deleteRom: (id) => ipcRenderer.invoke('delete-rom', id),

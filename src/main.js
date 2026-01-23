@@ -70,6 +70,24 @@ ipcMain.handle('select-folder', async () => {
   return null;
 });
 
+ipcMain.handle('select-files', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile', 'multiSelections'],
+    filters: [
+      {
+        name: 'ROM Files',
+        extensions: ['nes', 'smc', 'sfc', 'gb', 'gbc', 'gba', 'n64', 'z64', 'v64', 'nds', '3ds', 'iso', 'cue', 'bin', 'gcm', 'cso', 'md', 'smd', 'gen', 'gg', 'sms', 'rom', 'zip', '7z']
+      },
+      { name: 'All Files', extensions: ['*'] }
+    ]
+  });
+
+  if (!result.canceled && result.filePaths.length > 0) {
+    return result.filePaths;
+  }
+  return null;
+});
+
 ipcMain.handle('scan-roms', async (event, folderPath) => {
   const romExtensions = [
     '.nes', '.smc', '.sfc', '.gb', '.gbc', '.gba',
@@ -147,6 +165,76 @@ ipcMain.handle('scan-roms', async (event, folderPath) => {
     return { success: true, count: roms.length };
   } catch (error) {
     console.error('Error scanning ROMs:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('import-files', async (event, filePaths) => {
+  const romExtensions = [
+    '.nes', '.smc', '.sfc', '.gb', '.gbc', '.gba',
+    '.n64', '.z64', '.v64', '.nds', '.3ds',
+    '.iso', '.cue', '.bin', '.gcm', '.cso',
+    '.md', '.smd', '.gen', '.gg', '.sms',
+    '.rom', '.zip', '.7z'
+  ];
+
+  function detectSystem(extension) {
+    const systemMap = {
+      '.nes': 'Nintendo Entertainment System',
+      '.smc': 'Super Nintendo',
+      '.sfc': 'Super Nintendo',
+      '.gb': 'Game Boy',
+      '.gbc': 'Game Boy Color',
+      '.gba': 'Game Boy Advance',
+      '.n64': 'Nintendo 64',
+      '.z64': 'Nintendo 64',
+      '.v64': 'Nintendo 64',
+      '.nds': 'Nintendo DS',
+      '.3ds': 'Nintendo 3DS',
+      '.md': 'Sega Genesis',
+      '.smd': 'Sega Genesis',
+      '.gen': 'Sega Genesis',
+      '.gg': 'Game Gear',
+      '.sms': 'Sega Master System',
+      '.iso': 'PlayStation/GameCube/Wii',
+      '.cue': 'PlayStation',
+      '.bin': 'PlayStation',
+      '.gcm': 'GameCube',
+      '.cso': 'PSP'
+    };
+    return systemMap[extension] || 'Unknown';
+  }
+
+  try {
+    const roms = [];
+
+    for (const filePath of filePaths) {
+      const ext = path.extname(filePath).toLowerCase();
+
+      if (romExtensions.includes(ext)) {
+        const stats = await fs.stat(filePath);
+        const filename = path.basename(filePath);
+
+        roms.push({
+          name: path.basename(filePath, ext),
+          filename: filename,
+          path: filePath,
+          size: stats.size,
+          extension: ext,
+          system: detectSystem(ext),
+          dateAdded: new Date().toISOString()
+        });
+      }
+    }
+
+    // Add ROMs to database
+    for (const rom of roms) {
+      db.addRom(rom);
+    }
+
+    return { success: true, count: roms.length };
+  } catch (error) {
+    console.error('Error importing files:', error);
     return { success: false, error: error.message };
   }
 });
