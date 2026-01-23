@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RomTunes - ROM Manager</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1>RomTunes</h1>
+      </div>
+
+      <div class="sidebar-section">
+        <h3>Library</h3>
+        <ul class="nav-list">
+          <li class="nav-item active" data-filter="all">
+            <span class="icon">📚</span>
+            <span class="label">All ROMs</span>
+            <span class="count" id="total-count">0</span>
+          </li>
+          <li class="nav-item" data-filter="favorites">
+            <span class="icon">⭐</span>
+            <span class="label">Favorites</span>
+            <span class="count" id="favorites-count">0</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="sidebar-section">
+        <h3>Systems</h3>
+        <ul class="nav-list" id="systems-list">
+          <!-- Dynamically populated -->
+        </ul>
+      </div>
+
+      <div class="sidebar-footer">
+        <button class="btn-primary" id="import-btn">
+          <span class="icon">➕</span>
+          Import ROMs
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <div class="search-container">
+          <input
+            type="text"
+            id="search-input"
+            placeholder="Search ROMs..."
+            class="search-input"
+          />
+        </div>
+
+        <div class="toolbar-actions">
+          <select id="sort-select" class="sort-select">
+            <option value="name">Name</option>
+            <option value="system">System</option>
+            <option value="dateAdded">Date Added</option>
+            <option value="size">Size</option>
+          </select>
+
+          <div class="view-toggle">
+            <button class="view-btn active" data-view="grid" title="Grid View">
+              ⊞
+            </button>
+            <button class="view-btn" data-view="list" title="List View">
+              ☰
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Bar -->
+      <div class="stats-bar">
+        <div class="stat">
+          <span class="stat-label">Total ROMs:</span>
+          <span class="stat-value" id="stat-total">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Systems:</span>
+          <span class="stat-value" id="stat-systems">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Total Size:</span>
+          <span class="stat-value" id="stat-size">0 MB</span>
+        </div>
+      </div>
+
+      <!-- ROM Grid -->
+      <div class="rom-container" id="rom-container">
+        <div class="empty-state" id="empty-state">
+          <div class="empty-icon">🎮</div>
+          <h2>No ROMs in Library</h2>
+          <p>Click "Import ROMs" to add games to your library</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loading-overlay">
+    <div class="loading-spinner"></div>
+    <p id="loading-text">Loading...</p>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
