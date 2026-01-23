@@ -60,7 +60,10 @@ RomTunes automatically detects ROMs for these systems:
 
 ### Prerequisites
 
-- Node.js 16 or higher
+- **Node.js 18.x - 22.x (LTS recommended)** - v20 LTS is recommended
+  - ⚠️ **Important**: Node.js v23+ may have compatibility issues with better-sqlite3
+  - Download Node.js v20 LTS from [nodejs.org](https://nodejs.org/)
+  - Check your version: `node --version`
 - npm or yarn
 
 ### Setup
@@ -75,6 +78,7 @@ cd romtunes
 ```bash
 npm install
 ```
+   (Note: This automatically rebuilds native modules for Electron)
 
 3. Run the app:
 ```bash
@@ -370,7 +374,10 @@ Potential features for future versions:
 
 ### Prerequisites
 
-- Node.js 16 or higher
+- **Node.js 18.x - 22.x (LTS recommended)** - v20 LTS is recommended
+  - ⚠️ **Important**: Node.js v23+ may have compatibility issues with better-sqlite3
+  - Download Node.js v20 LTS from [nodejs.org](https://nodejs.org/)
+  - Check your version: `node --version`
 - npm or yarn
 - Platform-specific requirements:
   - **Windows**: No additional requirements
