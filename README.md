@@ -78,6 +78,7 @@ cd romtunes
 ```bash
 npm install
 ```
+   (Note: This automatically rebuilds native modules for Electron)
 
 3. Run the app:
 ```bash
