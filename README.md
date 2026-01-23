@@ -368,15 +368,113 @@ Potential features for future versions:
 
 ## Building for Production
 
-To package the app for distribution:
+### Prerequisites
 
+- Node.js 16 or higher
+- npm or yarn
+- Platform-specific requirements:
+  - **Windows**: No additional requirements
+  - **macOS**: Xcode Command Line Tools
+  - **Linux**: `dpkg` (Debian) or `rpm` (Red Hat) depending on target
+
+### Quick Start
+
+1. **Clone and install dependencies:**
 ```bash
-# Install electron-builder
-npm install --save-dev electron-builder
+git clone <repository-url>
+cd romtunes
+npm install
+```
 
-# Build for your platform
+2. **Build for your current platform:**
+```bash
 npm run build
 ```
+
+Installers will be created in the `dist/` directory.
+
+### Platform-Specific Builds
+
+Build for specific platforms:
+
+```bash
+# Windows (creates .exe installer and portable)
+npm run build:win
+
+# macOS (creates .dmg and .zip)
+npm run build:mac
+
+# Linux (creates AppImage and .deb)
+npm run build:linux
+
+# All platforms (requires platform dependencies)
+npm run build:all
+```
+
+### Build Output
+
+After building, you'll find these files in `dist/`:
+
+**Windows:**
+- `RomTunes Setup 1.0.0.exe` - Installer (recommended)
+- `RomTunes 1.0.0.exe` - Portable version (no installation required)
+
+**macOS:**
+- `RomTunes-1.0.0.dmg` - Disk image installer
+- `RomTunes-1.0.0-mac.zip` - Zipped application
+
+**Linux:**
+- `RomTunes-1.0.0.AppImage` - Universal Linux app (recommended)
+- `romtunes_1.0.0_amd64.deb` - Debian/Ubuntu package
+
+### Custom Icons
+
+To use custom app icons:
+
+1. Create your icons (see `build/icon-readme.md` for details)
+2. Place in `build/` directory:
+   - `icon.icns` - macOS (1024x1024)
+   - `icon.ico` - Windows (256x256)
+   - `icon.png` - Linux (512x512)
+3. Run build again
+
+### Distribution
+
+**For End Users:**
+1. Download the appropriate installer for your platform
+2. Run the installer
+3. Launch RomTunes from your applications folder
+
+**For Developers:**
+- Windows: Sign your .exe with a code signing certificate (optional but recommended)
+- macOS: Notarize your app with Apple (required for Gatekeeper)
+- Linux: AppImage works everywhere, .deb for Debian-based distros
+
+### GitHub Releases
+
+To distribute via GitHub Releases:
+
+1. Create a new release on GitHub
+2. Upload the built files from `dist/`
+3. Users can download directly from the releases page
+
+### Auto-Updates (Future)
+
+The app is configured for electron-builder but auto-updates are not yet enabled. To add auto-updates in the future, you'll need:
+- A release server (GitHub Releases, S3, etc.)
+- Configure `publish` in package.json
+- Add update checking code in main.js
+
+### Development vs Production
+
+- **Development**: `npm start` or `npm run dev`
+- **Production**: Built installers from `npm run build`
+
+The production build:
+- Bundles all dependencies
+- Optimizes file sizes
+- Creates native installers
+- Is ready for distribution
 
 ## Contributing
 
