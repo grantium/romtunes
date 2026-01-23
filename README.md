@@ -28,6 +28,9 @@
 ### Artwork Management
 - **Multiple Artwork Types** - Support for box art, screenshots, banners, and fan art
 - **Easy Import** - Drag and drop or select artwork files
+- **Auto-Scraping** - Integration with ScreenScraper.fr for automatic artwork download
+- **Bulk Operations** - Scrape artwork for entire library at once
+- **Smart Matching** - Searches by filename and CRC for accurate results
 - **Organized Storage** - Artwork stored in categorized folders
 - **Visual Library** - Display artwork in grid view for beautiful browsing
 - **Per-ROM Management** - Import different artwork types for each game
@@ -105,6 +108,8 @@ npm run dev
 
 ### Managing Artwork
 
+#### Manual Import
+
 1. Click on any ROM card to open the detail view
 2. Click **"Import Box Art"** or **"Import Screenshot"**
 3. Select an image file (JPG, PNG, GIF, WebP)
@@ -115,6 +120,37 @@ Artwork is stored in your user data directory:
 - Screenshots: `userData/artwork/screenshots/`
 - Banners: `userData/artwork/banners/`
 - Fan Art: `userData/artwork/fanart/`
+
+#### Auto-Scraping with ScreenScraper
+
+RomTunes integrates with [ScreenScraper.fr](https://www.screenscraper.fr) to automatically download artwork and metadata:
+
+**Setup:**
+1. (Optional but recommended) Register for a free account at screenscraper.fr for better rate limits
+2. Go to Settings (⚙️) → Scraper tab
+3. Check "Enable ScreenScraper"
+4. Enter your ScreenScraper username and password (if you have an account)
+5. Select which artwork types to download
+6. Click "Test Connection" to verify
+7. Save settings
+
+**Single ROM Scraping:**
+1. Open any ROM detail view
+2. Click the **"🔍 Auto-Scrape"** button
+3. RomTunes will search ScreenScraper by filename
+4. Artwork is automatically downloaded and imported
+
+**Bulk Scraping:**
+1. Go to Settings → Scraper tab
+2. Click **"Scrape All ROMs"**
+3. Wait as artwork is downloaded for all ROMs (respects rate limits)
+4. Progress is shown in real-time
+
+**Notes:**
+- ScreenScraper has rate limits (2 seconds per request without an account)
+- Registered users get better rate limits and priority
+- Works best with clean ROM filenames
+- Falls back to CRC matching for better accuracy on small files
 
 ### Syncing to Handheld Devices
 
@@ -178,6 +214,12 @@ Access settings via the Settings (⚙️) button:
 - Choose default artwork type
 - Configure artwork preferences
 
+**Scraper Tab:**
+- Configure ScreenScraper credentials
+- Test connection
+- Select artwork types to download
+- Bulk scrape all ROMs
+
 ## Project Structure
 
 ```
@@ -187,6 +229,7 @@ romtunes/
 │   ├── database.js          # SQLite database handler
 │   ├── config.js            # Configuration manager
 │   ├── sync.js              # Device sync manager
+│   ├── scraper.js           # ScreenScraper API client
 │   ├── preload.js           # Preload script for IPC
 │   └── renderer/
 │       ├── index.html       # Main UI with modals
@@ -273,6 +316,15 @@ CREATE TABLE roms (
     "enabled": true,
     "types": ["boxart", "screenshot", "banner", "fanart"],
     "defaultType": "boxart"
+  },
+  "scraper": {
+    "enabled": false,
+    "service": "screenscraper",
+    "credentials": {
+      "username": "",
+      "password": ""
+    },
+    "artworkTypes": ["boxart", "screenshot"]
   }
 }
 ```
@@ -301,17 +353,18 @@ Each profile can be customized with:
 Potential features for future versions:
 
 - **Launch ROMs** - Configure emulators and launch games directly
-- **Artwork Scraping** - Auto-download artwork from online databases (ScreenScraper, TheGamesDB)
+- **Additional Scrapers** - Support for TheGamesDB, IGDB, and other services
+- **Metadata Scraping** - Download game descriptions, release dates, publishers, etc.
 - **Play Time Tracking** - Track how long you've played each game
 - **Custom Tags** - User-defined tags and categories
 - **Playlists** - Create custom game collections
 - **Export/Import** - Share library configurations
-- **ROM Verification** - CRC32/MD5 checksums for ROM authenticity
+- **ROM Verification** - Enhanced CRC32/MD5 checksums for ROM authenticity
 - **Multi-language** - Interface translations
 - **Network Sync** - Sync between computers
 - **Bulk Operations** - Batch edit, rename, organize
 - **Advanced Filters** - Filter by year, genre, region
-- **Emulator Integration** - Detect installed emulators
+- **Emulator Integration** - Detect installed emulators and launch ROMs
 
 ## Building for Production
 

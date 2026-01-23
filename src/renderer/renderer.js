@@ -304,12 +304,14 @@ const romDetailCancel = document.getElementById('rom-detail-cancel');
 const romDeleteBtn = document.getElementById('rom-delete');
 const importBoxartBtn = document.getElementById('import-boxart');
 const importScreenshotBtn = document.getElementById('import-screenshot');
+const scrapeRomBtn = document.getElementById('scrape-rom-btn');
 
 romDetailClose.addEventListener('click', closeRomDetail);
 romDetailCancel.addEventListener('click', closeRomDetail);
 romDeleteBtn.addEventListener('click', deleteCurrentRom);
 importBoxartBtn.addEventListener('click', () => importArtwork('boxart'));
 importScreenshotBtn.addEventListener('click', () => importArtwork('screenshot'));
+scrapeRomBtn.addEventListener('click', scrapeCurrentRom);
 
 async function openRomDetail(rom) {
   currentRom = rom;
@@ -382,6 +384,59 @@ async function deleteCurrentRom() {
     closeRomDetail();
     await loadRoms();
     await updateStats();
+  }
+}
+
+async function scrapeCurrentRom() {
+  if (!currentRom) return;
+
+  const config = await window.electronAPI.getConfig();
+
+  if (!config.scraper?.enabled) {
+    const goToSettings = confirm(
+      'ScreenScraper is not configured.\n\n' +
+      'Would you like to go to Settings to set it up?'
+    );
+
+    if (goToSettings) {
+      closeRomDetail();
+      document.getElementById('settings-btn').click();
+      // Switch to scraper tab
+      setTimeout(() => {
+        const scraperTab = document.querySelector('[data-tab="scraper"]');
+        if (scraperTab) scraperTab.click();
+      }, 100);
+    }
+    return;
+  }
+
+  showLoading('Searching ScreenScraper...');
+  scrapeRomBtn.disabled = true;
+
+  try {
+    const artworkTypes = config.scraper.artworkTypes || ['boxart', 'screenshot'];
+    const result = await window.electronAPI.scrapeRom(currentRom.id, artworkTypes);
+
+    hideLoading();
+
+    if (result.success) {
+      alert(
+        `Successfully scraped artwork!\n\n` +
+        `Game: ${result.gameInfo.name}\n` +
+        `Downloaded: ${Object.keys(result.downloadedArtwork).join(', ')}`
+      );
+
+      // Reload ROM data and artwork
+      await loadRomArtwork(currentRom.id);
+      await loadRoms();
+    } else {
+      alert(`Scraping failed: ${result.error}`);
+    }
+  } catch (error) {
+    hideLoading();
+    alert(`Scraping error: ${error.message}`);
+  } finally {
+    scrapeRomBtn.disabled = false;
   }
 }
 

@@ -129,6 +129,7 @@
       <div class="modal-tabs">
         <button class="tab-btn active" data-tab="sync">Sync Profiles</button>
         <button class="tab-btn" data-tab="artwork">Artwork</button>
+        <button class="tab-btn" data-tab="scraper">Scraper</button>
       </div>
 
       <div class="modal-body">
@@ -162,6 +163,66 @@
               <option value="banner">Banner</option>
               <option value="fanart">Fan Art</option>
             </select>
+          </div>
+        </div>
+
+        <!-- Scraper Tab -->
+        <div class="tab-content" id="scraper-tab">
+          <p class="tab-description">
+            Configure ScreenScraper.fr integration to automatically download artwork and metadata.
+            <a href="https://www.screenscraper.fr" target="_blank" style="color: #667eea">Register for free</a> to get better rate limits.
+          </p>
+
+          <div class="setting-group">
+            <label class="setting-label">
+              <input type="checkbox" id="scraper-enabled" />
+              Enable ScreenScraper
+            </label>
+          </div>
+
+          <div class="setting-group">
+            <label class="setting-label">ScreenScraper Username</label>
+            <input type="text" id="scraper-username" class="setting-input" placeholder="Your ScreenScraper username" />
+          </div>
+
+          <div class="setting-group">
+            <label class="setting-label">ScreenScraper Password</label>
+            <input type="password" id="scraper-password" class="setting-input" placeholder="Your ScreenScraper password" />
+          </div>
+
+          <div class="setting-group">
+            <button class="btn-secondary" id="test-scraper-btn">Test Connection</button>
+            <span id="scraper-test-result" style="margin-left: 12px; font-size: 13px;"></span>
+          </div>
+
+          <div class="setting-group">
+            <label class="setting-label">Artwork Types to Download</label>
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+              <label class="setting-label">
+                <input type="checkbox" id="scraper-boxart" checked />
+                Box Art
+              </label>
+              <label class="setting-label">
+                <input type="checkbox" id="scraper-screenshot" checked />
+                Screenshots
+              </label>
+              <label class="setting-label">
+                <input type="checkbox" id="scraper-banner" />
+                Banners
+              </label>
+              <label class="setting-label">
+                <input type="checkbox" id="scraper-fanart" />
+                Fan Art
+              </label>
+            </div>
+          </div>
+
+          <div class="setting-group">
+            <button class="btn-primary" id="bulk-scrape-btn">Scrape All ROMs</button>
+            <p style="font-size: 12px; color: #888; margin-top: 8px;">
+              Note: This will scrape artwork for all ROMs that don't have box art yet.
+              ScreenScraper has rate limits, so this may take a while.
+            </p>
           </div>
         </div>
       </div>
@@ -226,6 +287,7 @@
           <div class="artwork-actions">
             <button class="btn-small" id="import-boxart">Import Box Art</button>
             <button class="btn-small" id="import-screenshot">Import Screenshot</button>
+            <button class="btn-small btn-scrape" id="scrape-rom-btn">🔍 Auto-Scrape</button>
           </div>
         </div>
 

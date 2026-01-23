@@ -4,11 +4,13 @@ const fs = require('fs').promises;
 const Database = require('./database');
 const ConfigManager = require('./config');
 const SyncManager = require('./sync');
+const ScreenScraper = require('./scraper');
 
 let mainWindow;
 let db;
 let config;
 let syncManager;
+let scraper;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -40,6 +42,7 @@ app.whenReady().then(async () => {
 
   db = new Database();
   syncManager = new SyncManager(config, db);
+  scraper = new ScreenScraper(config);
 
   createWindow();
 
@@ -263,4 +266,105 @@ ipcMain.handle('verify-sync', async (event, profileId) => {
 
 ipcMain.handle('get-sync-status', async () => {
   return syncManager.getSyncStatus();
+});
+
+// Scraper Handlers
+ipcMain.handle('scrape-rom', async (event, romId, artworkTypes = ['boxart', 'screenshot']) => {
+  try {
+    const rom = db.db.prepare('SELECT * FROM roms WHERE id = ?').get(romId);
+
+    if (!rom) {
+      return { success: false, error: 'ROM not found' };
+    }
+
+    const result = await scraper.scrapeRom(rom, artworkTypes);
+
+    if (result.success) {
+      // Update database with downloaded artwork paths
+      const updates = {};
+      for (const [artType, artPath] of Object.entries(result.downloadedArtwork)) {
+        updates[artType] = artPath;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        db.updateRom(romId, updates);
+      }
+    }
+
+    return result;
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('bulk-scrape', async (event, romIds = null, artworkTypes = ['boxart', 'screenshot']) => {
+  let roms;
+
+  if (romIds) {
+    roms = romIds.map(id => db.db.prepare('SELECT * FROM roms WHERE id = ?').get(id)).filter(Boolean);
+  } else {
+    roms = db.getRoms({});
+  }
+
+  const results = {
+    total: roms.length,
+    scraped: 0,
+    failed: 0,
+    skipped: 0,
+    errors: []
+  };
+
+  for (let i = 0; i < roms.length; i++) {
+    const rom = roms[i];
+
+    try {
+      // Skip if already has artwork
+      if (rom.boxart && artworkTypes.includes('boxart')) {
+        results.skipped++;
+        continue;
+      }
+
+      const result = await scraper.scrapeRom(rom, artworkTypes);
+
+      if (result.success) {
+        // Update database
+        const updates = {};
+        for (const [artType, artPath] of Object.entries(result.downloadedArtwork)) {
+          updates[artType] = artPath;
+        }
+
+        if (Object.keys(updates).length > 0) {
+          db.updateRom(rom.id, updates);
+        }
+
+        results.scraped++;
+      } else {
+        results.failed++;
+        results.errors.push({
+          rom: rom.name,
+          error: result.error
+        });
+      }
+
+      // Send progress
+      mainWindow.webContents.send('scrape-progress', {
+        current: i + 1,
+        total: roms.length,
+        rom: rom.name,
+        success: result.success
+      });
+    } catch (error) {
+      results.failed++;
+      results.errors.push({
+        rom: rom.name,
+        error: error.message
+      });
+    }
+  }
+
+  return results;
+});
+
+ipcMain.handle('test-scraper-credentials', async () => {
+  return scraper.testCredentials();
 });

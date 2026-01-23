@@ -552,6 +552,14 @@ button, input, select {
   background: #5568d3;
 }
 
+.btn-scrape {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.btn-scrape:hover {
+  background: linear-gradient(135deg, #5568d3 0%, #6a4391 100%);
+}
+
 /* Modals */
 .modal {
   display: none;

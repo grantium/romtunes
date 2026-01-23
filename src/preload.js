@@ -29,7 +29,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   verifySync: (profileId) => ipcRenderer.invoke('verify-sync', profileId),
   getSyncStatus: () => ipcRenderer.invoke('get-sync-status'),
 
+  // Scraper Operations
+  scrapeRom: (romId, artworkTypes) => ipcRenderer.invoke('scrape-rom', romId, artworkTypes),
+  bulkScrape: (romIds, artworkTypes) => ipcRenderer.invoke('bulk-scrape', romIds, artworkTypes),
+  testScraperCredentials: () => ipcRenderer.invoke('test-scraper-credentials'),
+
   // Event Listeners
   onSyncProgress: (callback) => ipcRenderer.on('sync-progress', (event, data) => callback(data)),
-  removeSyncProgressListener: () => ipcRenderer.removeAllListeners('sync-progress')
+  removeSyncProgressListener: () => ipcRenderer.removeAllListeners('sync-progress'),
+  onScrapeProgress: (callback) => ipcRenderer.on('scrape-progress', (event, data) => callback(data)),
+  removeScrapeProgressListener: () => ipcRenderer.removeAllListeners('scrape-progress')
 });

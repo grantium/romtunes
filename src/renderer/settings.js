@@ -1,6 +1,7 @@
 // Settings Modal Management
 let currentSettings = {};
 let syncProfiles = [];
+let isScraping = false;
 
 // DOM Elements
 const settingsBtn = document.getElementById('settings-btn');
@@ -55,6 +56,23 @@ function setupSettingsListeners() {
   window.electronAPI.onSyncProgress((progress) => {
     updateSyncProgress(progress);
   });
+
+  // Scraper handlers
+  const testScraperBtn = document.getElementById('test-scraper-btn');
+  const bulkScrapeBtn = document.getElementById('bulk-scrape-btn');
+
+  if (testScraperBtn) {
+    testScraperBtn.addEventListener('click', testScraperConnection);
+  }
+
+  if (bulkScrapeBtn) {
+    bulkScrapeBtn.addEventListener('click', startBulkScrape);
+  }
+
+  // Listen for scrape progress
+  window.electronAPI.onScrapeProgress((progress) => {
+    updateScrapeProgress(progress);
+  });
 }
 
 function switchTab(tabName) {
@@ -81,6 +99,29 @@ async function loadSettings() {
   renderProfiles();
   populateSyncProfileSelect();
   updateSyncStatusDisplay();
+  loadScraperSettings();
+}
+
+function loadScraperSettings() {
+  const scraperConfig = currentSettings.scraper || {};
+
+  const scraperEnabled = document.getElementById('scraper-enabled');
+  const scraperUsername = document.getElementById('scraper-username');
+  const scraperPassword = document.getElementById('scraper-password');
+  const scraperBoxart = document.getElementById('scraper-boxart');
+  const scraperScreenshot = document.getElementById('scraper-screenshot');
+  const scraperBanner = document.getElementById('scraper-banner');
+  const scraperFanart = document.getElementById('scraper-fanart');
+
+  if (scraperEnabled) scraperEnabled.checked = scraperConfig.enabled || false;
+  if (scraperUsername) scraperUsername.value = scraperConfig.credentials?.username || '';
+  if (scraperPassword) scraperPassword.value = scraperConfig.credentials?.password || '';
+
+  const artworkTypes = scraperConfig.artworkTypes || ['boxart', 'screenshot'];
+  if (scraperBoxart) scraperBoxart.checked = artworkTypes.includes('boxart');
+  if (scraperScreenshot) scraperScreenshot.checked = artworkTypes.includes('screenshot');
+  if (scraperBanner) scraperBanner.checked = artworkTypes.includes('banner');
+  if (scraperFanart) scraperFanart.checked = artworkTypes.includes('fanart');
 }
 
 function renderProfiles() {
@@ -199,6 +240,24 @@ async function saveSettings() {
   await window.electronAPI.setConfig('artwork.enabled', artworkEnabled);
   await window.electronAPI.setConfig('artwork.defaultType', artworkDefaultType);
 
+  // Save scraper settings
+  const scraperEnabled = document.getElementById('scraper-enabled').checked;
+  const scraperUsername = document.getElementById('scraper-username').value;
+  const scraperPassword = document.getElementById('scraper-password').value;
+
+  const artworkTypes = [];
+  if (document.getElementById('scraper-boxart').checked) artworkTypes.push('boxart');
+  if (document.getElementById('scraper-screenshot').checked) artworkTypes.push('screenshot');
+  if (document.getElementById('scraper-banner').checked) artworkTypes.push('banner');
+  if (document.getElementById('scraper-fanart').checked) artworkTypes.push('fanart');
+
+  await window.electronAPI.setConfig('scraper.enabled', scraperEnabled);
+  await window.electronAPI.setConfig('scraper.credentials', {
+    username: scraperUsername,
+    password: scraperPassword
+  });
+  await window.electronAPI.setConfig('scraper.artworkTypes', artworkTypes);
+
   closeSettings();
   alert('Settings saved successfully!');
 }
@@ -279,6 +338,88 @@ function updateSyncProgress(progress) {
   const percent = (progress.current / progress.total) * 100;
   syncProgressBar.style.width = `${percent}%`;
   syncProgressText.textContent = `Syncing ${progress.rom} (${progress.current}/${progress.total})`;
+}
+
+// Scraper Functions
+async function testScraperConnection() {
+  const resultSpan = document.getElementById('scraper-test-result');
+  resultSpan.textContent = 'Testing...';
+  resultSpan.style.color = '#888';
+
+  // Save credentials first
+  const username = document.getElementById('scraper-username').value;
+  const password = document.getElementById('scraper-password').value;
+
+  await window.electronAPI.setConfig('scraper.credentials', {
+    username,
+    password
+  });
+
+  const result = await window.electronAPI.testScraperCredentials();
+
+  if (result.success) {
+    resultSpan.textContent = '✓ Connection successful!';
+    resultSpan.style.color = '#4caf50';
+  } else {
+    resultSpan.textContent = `✗ ${result.error}`;
+    resultSpan.style.color = '#f44336';
+  }
+}
+
+async function startBulkScrape() {
+  if (isScraping) {
+    alert('Scraping already in progress');
+    return;
+  }
+
+  const confirmed = confirm(
+    'This will scrape artwork for all ROMs that don\'t have box art.\n\n' +
+    'ScreenScraper has rate limits (2 seconds per request), so this may take a while.\n\n' +
+    'Continue?'
+  );
+
+  if (!confirmed) return;
+
+  isScraping = true;
+  const bulkScrapeBtn = document.getElementById('bulk-scrape-btn');
+  bulkScrapeBtn.disabled = true;
+  bulkScrapeBtn.textContent = 'Scraping...';
+
+  const artworkTypes = [];
+  if (document.getElementById('scraper-boxart').checked) artworkTypes.push('boxart');
+  if (document.getElementById('scraper-screenshot').checked) artworkTypes.push('screenshot');
+  if (document.getElementById('scraper-banner').checked) artworkTypes.push('banner');
+  if (document.getElementById('scraper-fanart').checked) artworkTypes.push('fanart');
+
+  try {
+    const result = await window.electronAPI.bulkScrape(null, artworkTypes);
+
+    alert(
+      `Bulk scrape complete!\n\n` +
+      `Scraped: ${result.scraped}\n` +
+      `Failed: ${result.failed}\n` +
+      `Skipped: ${result.skipped}\n` +
+      `Total: ${result.total}`
+    );
+
+    // Reload ROMs to show new artwork
+    if (typeof loadRoms === 'function') {
+      await loadRoms();
+    }
+  } catch (error) {
+    alert(`Bulk scrape failed: ${error.message}`);
+  } finally {
+    isScraping = false;
+    bulkScrapeBtn.disabled = false;
+    bulkScrapeBtn.textContent = 'Scrape All ROMs';
+  }
+}
+
+function updateScrapeProgress(progress) {
+  const bulkScrapeBtn = document.getElementById('bulk-scrape-btn');
+  if (bulkScrapeBtn) {
+    bulkScrapeBtn.textContent = `Scraping... (${progress.current}/${progress.total})`;
+  }
 }
 
 // Make functions globally accessible

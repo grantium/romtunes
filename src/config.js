@@ -116,6 +116,16 @@ class ConfigManager {
       scanning: {
         recursive: true,
         ignoreHidden: true
+      },
+      scraper: {
+        enabled: false,
+        service: 'screenscraper',
+        credentials: {
+          username: '',
+          password: ''
+        },
+        autoScrape: false,
+        artworkTypes: ['boxart', 'screenshot']
       }
     };
   }
