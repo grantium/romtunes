@@ -234,13 +234,23 @@
           <div class="setting-group">
             <label class="setting-label">Scraper Provider</label>
             <select id="scraper-provider" class="setting-select">
-              <option value="thegamesdb">TheGamesDB (Recommended - No credentials required)</option>
-              <option value="screenscraper">ScreenScraper (Requires account + dev credentials)</option>
+              <option value="thegamesdb">TheGamesDB (Recommended)</option>
+              <option value="screenscraper">ScreenScraper</option>
             </select>
             <p style="font-size: 12px; color: #888; margin-top: 4px;">
-              TheGamesDB is easier to use and has good coverage for retro games.
-              ScreenScraper requires registration and developer credentials.
+              Both services are free but require registration for API access.
             </p>
+          </div>
+
+          <div class="setting-group" id="thegamesdb-credentials">
+            <h4 style="margin-bottom: 12px; font-size: 14px;">TheGamesDB API Key</h4>
+            <p style="font-size: 12px; color: #888; margin-bottom: 12px;">
+              <a href="https://forums.thegamesdb.net/viewforum.php?f=10" target="_blank" style="color: #667eea">Register for a free API key</a> at TheGamesDB forums.
+              It only takes a minute and gives you access to their full database.
+            </p>
+
+            <label class="setting-label">API Key</label>
+            <input type="text" id="thegamesdb-apikey" class="setting-input" placeholder="Your TheGamesDB API key" />
           </div>
 
           <div class="setting-group" id="screenscraper-credentials" style="display: none;">

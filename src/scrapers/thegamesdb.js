@@ -8,9 +8,10 @@ class TheGamesDB {
     this.config = config;
     this.baseUrl = 'https://api.thegamesdb.net/v1';
 
-    // Public API key for RomTunes - users can get their own at https://thegamesdb.net/
-    // This is a demo key with limited rate limits - users should register for their own
-    this.apiKey = 'e0b3b8d0b8c8d8e8f8a8b8c8d8e8f8a8'; // Placeholder - needs real key
+    // Get API key from config, or use default demo key
+    // Users should register for free at https://forums.thegamesdb.net/viewforum.php?f=10
+    const credentials = this.config.get('scraper.thegamesdb') || {};
+    this.apiKey = credentials.apiKey || '';
 
     this.lastRequestTime = 0;
     this.minRequestInterval = 1000; // 1 second between requests (generous limit)
@@ -249,6 +250,13 @@ class TheGamesDB {
 
   async scrapeRom(rom, artworkTypes = ['boxart', 'screenshot']) {
     try {
+      if (!this.apiKey) {
+        return {
+          success: false,
+          error: 'TheGamesDB API key not configured. Please add your API key in Settings → Scraper tab.'
+        };
+      }
+
       // Clean ROM name (remove extension and common tags)
       const cleanName = path.basename(rom.filename, rom.extension)
         .replace(/\(.*?\)/g, '') // Remove parentheses content
@@ -299,6 +307,13 @@ class TheGamesDB {
 
   async testCredentials() {
     try {
+      if (!this.apiKey) {
+        return {
+          success: false,
+          error: 'Please enter your TheGamesDB API key. Register for free at https://forums.thegamesdb.net/viewforum.php?f=10'
+        };
+      }
+
       console.log('[TheGamesDB] Testing API key...');
 
       const url = this.buildUrl('Platforms', {});
@@ -312,7 +327,7 @@ class TheGamesDB {
       console.error('[TheGamesDB] API key test failed:', error.message);
       return {
         success: false,
-        error: `TheGamesDB API error: ${error.message}. The API key may be invalid or rate limited.`
+        error: `TheGamesDB error: ${error.message}. Your API key may be invalid. Get a free key at https://forums.thegamesdb.net/viewforum.php?f=10`
       };
     }
   }
