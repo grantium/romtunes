@@ -241,6 +241,16 @@ function renderGridView() {
   romContainer.innerHTML = '';
   romContainer.appendChild(grid);
   console.log(`Rendered ${roms.length} ROMs in grid view`);
+
+  // Debug: Check if anything is blocking clicks
+  setTimeout(() => {
+    const loadingActive = document.querySelector('.loading-overlay.active');
+    const modalActive = document.querySelector('.modal.active');
+    console.log('Loading overlay active?', !!loadingActive);
+    console.log('Modal active?', !!modalActive);
+    console.log('Grid element exists?', !!document.querySelector('.rom-grid'));
+    console.log('First card exists?', !!document.querySelector('.rom-card'));
+  }, 100);
 }
 
 // Render List View
