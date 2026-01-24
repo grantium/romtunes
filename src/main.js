@@ -5,12 +5,32 @@ const Database = require('./database');
 const ConfigManager = require('./config');
 const SyncManager = require('./sync');
 const ScreenScraper = require('./scraper');
+const TheGamesDB = require('./scrapers/thegamesdb');
 
 let mainWindow;
 let db;
 let config;
 let syncManager;
 let scraper;
+
+// Get the active scraper based on config
+function getActiveScraper() {
+  const scraperProvider = config.get('scraper.provider') || 'thegamesdb';
+
+  if (scraperProvider === 'screenscraper') {
+    if (!scraper || scraper.constructor.name !== 'ScreenScraper') {
+      console.log('[Scraper] Initializing ScreenScraper');
+      scraper = new ScreenScraper(config);
+    }
+  } else {
+    if (!scraper || scraper.constructor.name !== 'TheGamesDB') {
+      console.log('[Scraper] Initializing TheGamesDB');
+      scraper = new TheGamesDB(config);
+    }
+  }
+
+  return scraper;
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -42,7 +62,9 @@ app.whenReady().then(async () => {
 
   db = new Database();
   syncManager = new SyncManager(config, db);
-  scraper = new ScreenScraper(config);
+
+  // Initialize default scraper
+  getActiveScraper();
 
   createWindow();
 
@@ -364,13 +386,14 @@ ipcMain.handle('get-sync-status', async () => {
 // Scraper Handlers
 ipcMain.handle('scrape-rom', async (event, romId, artworkTypes = ['boxart', 'screenshot']) => {
   try {
+    const activeScraper = getActiveScraper();
     const rom = db.db.prepare('SELECT * FROM roms WHERE id = ?').get(romId);
 
     if (!rom) {
       return { success: false, error: 'ROM not found' };
     }
 
-    const result = await scraper.scrapeRom(rom, artworkTypes);
+    const result = await activeScraper.scrapeRom(rom, artworkTypes);
 
     if (result.success) {
       // Update database with downloaded artwork paths
@@ -391,6 +414,7 @@ ipcMain.handle('scrape-rom', async (event, romId, artworkTypes = ['boxart', 'scr
 });
 
 ipcMain.handle('bulk-scrape', async (event, romIds = null, artworkTypes = ['boxart', 'screenshot']) => {
+  const activeScraper = getActiveScraper();
   let roms;
 
   if (romIds) {
@@ -428,7 +452,7 @@ ipcMain.handle('bulk-scrape', async (event, romIds = null, artworkTypes = ['boxa
 
       console.log(`[Scraper] Scraping ${i + 1}/${roms.length}: ${rom.name} (${rom.system})`);
 
-      const result = await scraper.scrapeRom(rom, artworkTypes);
+      const result = await activeScraper.scrapeRom(rom, artworkTypes);
 
       if (result.success) {
         // Update database
@@ -489,5 +513,6 @@ ipcMain.handle('bulk-scrape', async (event, romIds = null, artworkTypes = ['boxa
 });
 
 ipcMain.handle('test-scraper-credentials', async () => {
-  return scraper.testCredentials();
+  const activeScraper = getActiveScraper();
+  return activeScraper.testCredentials();
 });
