@@ -1,5 +1,39 @@
+# Dependencies
 node_modules/
+
+# Build outputs
 dist/
+build/
+out/
+
+# Database files
 *.db
+*.db-shm
+*.db-wal
+
+# Config and user data (for development)
+config.json
+artwork/
+
+# OS files
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Environment variables
+.env
+.env.local
+.env.*.local

@@ -62,22 +62,44 @@ function setupEventListeners() {
 
 // Handle Import
 async function handleImport() {
-  const folderPath = await window.electronAPI.selectFolder();
+  // Show import options menu
+  const choice = confirm('Click OK to import a folder of ROMs, or Cancel to select individual ROM files.');
 
-  if (folderPath) {
-    showLoading('Scanning for ROMs...');
+  if (choice) {
+    // Import folder
+    const folderPath = await window.electronAPI.selectFolder();
 
-    const result = await window.electronAPI.scanRoms(folderPath);
+    if (folderPath) {
+      showLoading('Scanning for ROMs...');
+      const result = await window.electronAPI.scanRoms(folderPath);
+      hideLoading();
 
-    hideLoading();
+      if (result.success) {
+        alert(`Successfully imported ${result.count} ROMs!`);
+        await loadRoms();
+        await loadSystems();
+        await updateStats();
+      } else {
+        alert(`Error importing ROMs: ${result.error}`);
+      }
+    }
+  } else {
+    // Import files
+    const filePaths = await window.electronAPI.selectFiles();
 
-    if (result.success) {
-      alert(`Successfully imported ${result.count} ROMs!`);
-      await loadRoms();
-      await loadSystems();
-      await updateStats();
-    } else {
-      alert(`Error importing ROMs: ${result.error}`);
+    if (filePaths) {
+      showLoading('Importing ROM files...');
+      const result = await window.electronAPI.importFiles(filePaths);
+      hideLoading();
+
+      if (result.success) {
+        alert(`Successfully imported ${result.count} ROM file(s)!`);
+        await loadRoms();
+        await loadSystems();
+        await updateStats();
+      } else {
+        alert(`Error importing files: ${result.error}`);
+      }
     }
   }
 }

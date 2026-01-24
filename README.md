@@ -97,8 +97,10 @@ npm run dev
 ### Importing ROMs
 
 1. Click the **"Import ROMs"** button in the sidebar
-2. Select a folder containing your ROM files
-3. RomTunes will scan all subdirectories and automatically detect ROMs
+2. Choose to import a folder or individual files:
+   - **Folder**: Select a folder containing ROM files (scans all subdirectories)
+   - **Files**: Select one or more individual ROM files
+3. RomTunes automatically detects ROM systems by file extension
 4. ROMs are added to your library with detected system information
 
 ### Organizing Your Library
@@ -418,6 +420,13 @@ npm run build:linux
 npm run build:all
 ```
 
+**Note:** Cross-platform building has limitations:
+- Windows builds work on Windows, macOS (with Wine), and Linux (with Wine)
+- macOS builds only work on macOS (requires Xcode)
+- Linux builds work on all platforms
+
+For the most reliable builds, use GitHub Actions which builds on native runners for each platform.
+
 ### Build Output
 
 After building, you'll find these files in `dist/`:
@@ -433,6 +442,34 @@ After building, you'll find these files in `dist/`:
 **Linux:**
 - `RomTunes-1.0.0.AppImage` - Universal Linux app (recommended)
 - `romtunes_1.0.0_amd64.deb` - Debian/Ubuntu package
+
+### Automated Builds with GitHub Actions
+
+RomTunes includes a GitHub Actions workflow that automatically builds for all platforms:
+
+**Automatic Builds:**
+- Triggered on every push to `main` branch
+- Builds for Windows, macOS, and Linux simultaneously
+- Uploads build artifacts for download
+- Available in the Actions tab of your GitHub repository
+
+**Creating Releases:**
+1. Tag your commit with a version number:
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+2. GitHub Actions will automatically:
+   - Build for all platforms
+   - Create a GitHub Release
+   - Attach all installers to the release
+   - Generate release notes
+
+**Manual Workflow Trigger:**
+- Go to Actions tab → Build and Release → Run workflow
+- Builds on demand without creating a release
+
+This makes it easy to distribute RomTunes to users - they can download pre-built installers from the Releases page without needing to build from source.
 
 ### Custom Icons
 

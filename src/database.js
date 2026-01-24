@@ -110,9 +110,10 @@ class RomDatabase {
       query += ' AND favorite = 1';
     }
 
-    // Sorting
-    const sortBy = filters.sortBy || 'name';
-    const sortOrder = filters.sortOrder || 'ASC';
+    // Sorting - whitelist allowed columns to prevent SQL injection
+    const allowedSortColumns = ['name', 'system', 'dateAdded', 'size', 'lastPlayed', 'rating'];
+    const sortBy = allowedSortColumns.includes(filters.sortBy) ? filters.sortBy : 'name';
+    const sortOrder = filters.sortOrder === 'DESC' ? 'DESC' : 'ASC';
     query += ` ORDER BY ${sortBy} ${sortOrder}`;
 
     const stmt = this.db.prepare(query);
@@ -135,12 +136,25 @@ class RomDatabase {
   }
 
   updateRom(id, updates) {
+    // Whitelist allowed fields to prevent SQL injection
+    const allowedFields = [
+      'name', 'filename', 'path', 'size', 'extension', 'system',
+      'dateAdded', 'lastPlayed', 'playCount', 'favorite', 'rating',
+      'boxart', 'screenshot', 'banner', 'fanart', 'synced', 'lastSynced'
+    ];
+
     const fields = [];
     const values = [];
 
     for (const [key, value] of Object.entries(updates)) {
-      fields.push(`${key} = ?`);
-      values.push(value);
+      if (allowedFields.includes(key)) {
+        fields.push(`${key} = ?`);
+        values.push(value);
+      }
+    }
+
+    if (fields.length === 0) {
+      throw new Error('No valid fields to update');
     }
 
     values.push(id);

@@ -207,10 +207,21 @@ class ConfigManager {
   }
 
   getArtworkPath(romId, artworkType = 'boxart') {
+    // Validate artworkType to prevent path traversal
+    const allowedTypes = ['boxart', 'screenshots', 'banners', 'fanart'];
+    if (!allowedTypes.includes(artworkType)) {
+      artworkType = 'boxart';
+    }
     return path.join(this.artworkPath, artworkType, `${romId}.jpg`);
   }
 
   async importArtwork(romId, artworkType, sourcePath) {
+    // Validate artworkType
+    const allowedTypes = ['boxart', 'screenshots', 'banners', 'fanart'];
+    if (!allowedTypes.includes(artworkType)) {
+      throw new Error(`Invalid artwork type: ${artworkType}`);
+    }
+
     const destPath = this.getArtworkPath(romId, artworkType);
     await fs.copyFile(sourcePath, destPath);
     return destPath;
