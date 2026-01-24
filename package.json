@@ -23,10 +23,10 @@
     "name": "RomTunes",
     "email": "support@romtunes.app"
   },
-  "homepage": "https://github.com/yourusername/romtunes",
+  "homepage": "https://github.com/grantium/romtunes",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/romtunes.git"
+    "url": "https://github.com/grantium/romtunes.git"
   },
   "license": "MIT",
   "engines": {
