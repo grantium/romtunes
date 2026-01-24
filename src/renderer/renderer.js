@@ -125,6 +125,7 @@ function handleSort(e) {
 
 // Load ROMs
 async function loadRoms() {
+  console.log('loadRoms() called');
   roms = await window.electronAPI.getRoms(currentFilter);
   renderRoms();
 }
@@ -230,8 +231,10 @@ function renderGridView() {
     });
 
     // Add click handler to open detail modal
-    card.addEventListener('click', () => {
+    card.addEventListener('click', (e) => {
       console.log('ROM card clicked:', rom.name);
+      console.log('Event target:', e.target);
+      console.log('Current target:', e.currentTarget);
       openRomDetail(rom);
     });
 
@@ -241,6 +244,26 @@ function renderGridView() {
   romContainer.innerHTML = '';
   romContainer.appendChild(grid);
   console.log(`Rendered ${roms.length} ROMs in grid view`);
+
+  // Debug: Check if anything is blocking clicks
+  setTimeout(() => {
+    const loadingActive = document.querySelector('.loading-overlay.active');
+    const modalActive = document.querySelector('.modal.active');
+    const firstCard = document.querySelector('.rom-card');
+    console.log('Loading overlay active?', !!loadingActive);
+    console.log('Modal active?', !!modalActive);
+    console.log('Grid element exists?', !!document.querySelector('.rom-grid'));
+    console.log('First card exists?', !!firstCard);
+
+    // Test if we can programmatically click a card
+    if (firstCard) {
+      console.log('Testing programmatic click on first card...');
+      window.testClick = () => {
+        firstCard.click();
+      };
+      console.log('Run testClick() in console to test if event listener works');
+    }
+  }, 100);
 }
 
 // Render List View
