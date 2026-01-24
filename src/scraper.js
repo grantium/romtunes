@@ -34,8 +34,6 @@ class ScreenScraper {
     const credentials = this.config.get('scraper.credentials') || {};
 
     const queryParams = {
-      devid: this.devid,
-      devpassword: this.devpassword,
       softname: this.softname,
       output: 'json',
       ...params
@@ -47,11 +45,27 @@ class ScreenScraper {
       queryParams.sspassword = credentials.password;
     }
 
+    // Note: devid/devpassword are optional but provide better rate limits
+    // Users can register as a developer at screenscraper.fr for higher quotas
+    if (this.devid) {
+      queryParams.devid = this.devid;
+    }
+    if (this.devpassword) {
+      queryParams.devpassword = this.devpassword;
+    }
+
     const queryString = Object.entries(queryParams)
+      .filter(([key, value]) => value !== '' && value !== null && value !== undefined)
       .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
       .join('&');
 
-    return `${this.baseUrl}/${endpoint}.php?${queryString}`;
+    const url = `${this.baseUrl}/${endpoint}.php?${queryString}`;
+
+    // Debug log (remove credentials for security)
+    const debugUrl = url.replace(/sspassword=[^&]+/, 'sspassword=***').replace(/devpassword=[^&]+/, 'devpassword=***');
+    console.log('ScreenScraper API URL:', debugUrl);
+
+    return url;
   }
 
   async makeRequest(url) {

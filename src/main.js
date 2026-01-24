@@ -413,9 +413,20 @@ ipcMain.handle('bulk-scrape', async (event, romIds = null, artworkTypes = ['boxa
     try {
       // Skip if already has artwork
       if (rom.boxart && artworkTypes.includes('boxart')) {
+        console.log(`[Scraper] Skipping ${rom.name} - already has box art`);
         results.skipped++;
+
+        mainWindow.webContents.send('scrape-progress', {
+          current: i + 1,
+          total: roms.length,
+          rom: rom.name,
+          status: 'skipped',
+          message: 'Already has artwork'
+        });
         continue;
       }
+
+      console.log(`[Scraper] Scraping ${i + 1}/${roms.length}: ${rom.name} (${rom.system})`);
 
       const result = await scraper.scrapeRom(rom, artworkTypes);
 
@@ -428,29 +439,48 @@ ipcMain.handle('bulk-scrape', async (event, romIds = null, artworkTypes = ['boxa
 
         if (Object.keys(updates).length > 0) {
           db.updateRom(rom.id, updates);
+          console.log(`[Scraper] ✓ Success: ${rom.name} - Downloaded: ${Object.keys(updates).join(', ')}`);
         }
 
         results.scraped++;
+
+        mainWindow.webContents.send('scrape-progress', {
+          current: i + 1,
+          total: roms.length,
+          rom: rom.name,
+          status: 'success',
+          message: `Downloaded ${Object.keys(result.downloadedArtwork).join(', ')}`
+        });
       } else {
+        console.error(`[Scraper] ✗ Failed: ${rom.name} - ${result.error}`);
         results.failed++;
         results.errors.push({
           rom: rom.name,
           error: result.error
         });
-      }
 
-      // Send progress
-      mainWindow.webContents.send('scrape-progress', {
-        current: i + 1,
-        total: roms.length,
-        rom: rom.name,
-        success: result.success
-      });
+        mainWindow.webContents.send('scrape-progress', {
+          current: i + 1,
+          total: roms.length,
+          rom: rom.name,
+          status: 'failed',
+          message: result.error
+        });
+      }
     } catch (error) {
+      console.error(`[Scraper] ✗ Error: ${rom.name} - ${error.message}`);
       results.failed++;
       results.errors.push({
         rom: rom.name,
         error: error.message
+      });
+
+      mainWindow.webContents.send('scrape-progress', {
+        current: i + 1,
+        total: roms.length,
+        rom: rom.name,
+        status: 'error',
+        message: error.message
       });
     }
   }

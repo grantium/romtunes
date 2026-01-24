@@ -468,8 +468,29 @@ async function startBulkScrape() {
 
 function updateScrapeProgress(progress) {
   const bulkScrapeBtn = document.getElementById('bulk-scrape-btn');
+  const scrapeArtworkBtn = document.getElementById('scrape-artwork-btn');
+
+  const statusEmoji = {
+    'success': '✓',
+    'failed': '✗',
+    'error': '✗',
+    'skipped': '⊘'
+  };
+
+  const emoji = statusEmoji[progress.status] || '';
+  const displayText = `${emoji} ${progress.current}/${progress.total}: ${progress.rom}`;
+  const detailText = progress.message ? `\n${progress.message}` : '';
+
+  console.log(`[Scrape Progress] ${displayText}${detailText}`);
+
   if (bulkScrapeBtn) {
     bulkScrapeBtn.textContent = `Scraping... (${progress.current}/${progress.total})`;
+    bulkScrapeBtn.title = `${progress.rom}: ${progress.message || progress.status}`;
+  }
+
+  if (scrapeArtworkBtn) {
+    scrapeArtworkBtn.textContent = `🎨 Scraping... (${progress.current}/${progress.total})`;
+    scrapeArtworkBtn.title = `${progress.rom}: ${progress.message || progress.status}`;
   }
 }
 
