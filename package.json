@@ -55,9 +55,15 @@
     "mac": {
       "category": "public.app-category.entertainment",
       "target": [
-        "dmg",
-        "zip"
-      ]
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "identity": null
     },
     "win": {
       "target": [
