@@ -1,6 +1,8 @@
-# App Icons
+# App Icons (Optional)
 
-Place your app icons in this directory:
+**Custom icons are optional.** If no icons are provided, electron-builder will use default Electron icons.
+
+To use custom icons, place them in this directory:
 
 - `icon.icns` - macOS icon (1024x1024)
 - `icon.ico` - Windows icon (256x256)
