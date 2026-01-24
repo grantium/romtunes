@@ -218,8 +218,9 @@ class SyncManager {
             // This would require adding an image processing library like 'sharp'
             await fs.copyFile(sourceArtPath, targetArtPath);
             results.synced++;
-          } catch {
+          } catch (error) {
             // Artwork doesn't exist, skip
+            console.log(`Skipping artwork for ${rom.name}: ${error.message}`);
             results.skipped++;
           }
         }
@@ -229,6 +230,11 @@ class SyncManager {
           error: error.message
         });
       }
+    }
+
+    // Add helpful message if nothing was synced
+    if (results.synced === 0 && results.skipped > 0) {
+      results.message = 'No artwork found to sync. Use the "Scrape Artwork" button to download artwork from ScreenScraper first.';
     }
 
     return results;
