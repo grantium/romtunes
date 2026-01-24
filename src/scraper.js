@@ -443,21 +443,26 @@ class ScreenScraper {
         };
       }
 
+      console.log('[ScreenScraper] Testing credentials for user:', credentials.username);
+
       const url = this.buildUrl('jeuInfos', {
         systemeid: 1,
         romnom: 'Sonic'
       });
 
       await this.waitForRateLimit();
-      await this.makeRequest(url);
+      const response = await this.makeRequest(url);
 
+      console.log('[ScreenScraper] Credentials test successful!');
       return { success: true };
     } catch (error) {
+      console.error('[ScreenScraper] Credentials test failed:', error.message);
+
       // Provide more helpful error messages
       if (error.message.includes('Erreur de login') || error.message.includes('identifiants')) {
         return {
           success: false,
-          error: 'Invalid ScreenScraper credentials. Please check your username and password.'
+          error: 'Invalid ScreenScraper credentials. Check your username and password. Note: ScreenScraper may require developer credentials for API access. Visit https://www.screenscraper.fr/forumsujets.php?suj=784 to apply for dev credentials.'
         };
       }
       return { success: false, error: error.message };
