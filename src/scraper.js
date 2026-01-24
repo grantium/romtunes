@@ -67,6 +67,9 @@ class ScreenScraper {
 
         res.on('end', () => {
           try {
+            // Log response for debugging
+            console.log('ScreenScraper Response:', data.substring(0, 500));
+
             const json = JSON.parse(data);
 
             // Check for API errors
@@ -77,7 +80,16 @@ class ScreenScraper {
 
             resolve(json);
           } catch (error) {
-            reject(new Error('Failed to parse API response'));
+            // Provide more context about what failed
+            const preview = data.substring(0, 200);
+            console.error('Failed to parse ScreenScraper response:', preview);
+
+            // Check if it's an HTML error page
+            if (data.trim().startsWith('<!DOCTYPE') || data.trim().startsWith('<html')) {
+              reject(new Error('ScreenScraper returned an error page. Please check your credentials or try again later.'));
+            } else {
+              reject(new Error(`Failed to parse API response: ${preview}...`));
+            }
           }
         });
       }).on('error', (error) => {

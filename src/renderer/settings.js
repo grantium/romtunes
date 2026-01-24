@@ -10,6 +10,7 @@ const settingsClose = document.getElementById('settings-close');
 const settingsCancel = document.getElementById('settings-cancel');
 const settingsSave = document.getElementById('settings-save');
 const profilesContainer = document.getElementById('profiles-container');
+const scrapeArtworkBtn = document.getElementById('scrape-artwork-btn');
 
 const syncBtn = document.getElementById('sync-btn');
 const syncModal = document.getElementById('sync-modal');
@@ -43,6 +44,11 @@ function setupSettingsListeners() {
   syncClose.addEventListener('click', closeSyncModal);
   syncCancel.addEventListener('click', closeSyncModal);
   syncStart.addEventListener('click', startSync);
+
+  // Scrape artwork from toolbar
+  if (scrapeArtworkBtn) {
+    scrapeArtworkBtn.addEventListener('click', startBulkScrape);
+  }
 
   // Tab switching
   tabBtns.forEach(btn => {
