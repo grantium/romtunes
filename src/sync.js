@@ -128,6 +128,14 @@ class SyncManager {
       throw new Error('Profile is not enabled or base path is not set');
     }
 
+    // Get artwork settings for this profile
+    const artworkSettings = profile.artworkSettings || {};
+    const artworkEnabled = artworkSettings.enabled !== false;
+
+    if (!artworkEnabled) {
+      return { total: 0, synced: 0, skipped: 0, errors: [], message: 'Artwork sync disabled for this profile' };
+    }
+
     // Get ROMs
     let roms;
     if (romIds) {
@@ -151,26 +159,68 @@ class SyncManager {
         const targetFolder = profile.systemMappings[rom.system];
         if (!targetFolder) continue;
 
-        // Create artwork directories
+        // Create artwork directories based on firmware requirements
         const targetDir = path.join(profile.basePath, targetFolder);
+        const artworkFolder = artworkSettings.folder || 'boxart';
+        const preferredType = artworkSettings.preferredType || '2d';
 
         for (const artType of artworkTypes) {
-          const artPath = this.config.getArtworkPath(rom.id, artType);
+          if (artType !== 'boxart') continue; // Only sync boxart for now
+
+          // Try to find the best boxart variant for this device
+          let sourceArtPath = null;
+
+          // First try preferred style (2d or 3d)
+          if (preferredType === '2d') {
+            sourceArtPath = this.config.getArtworkPath(rom.id, 'boxart', '2d');
+            try {
+              await fs.access(sourceArtPath);
+            } catch {
+              // Try 3D as fallback
+              sourceArtPath = this.config.getArtworkPath(rom.id, 'boxart', '3d');
+              try {
+                await fs.access(sourceArtPath);
+              } catch {
+                // Try default boxart
+                sourceArtPath = this.config.getArtworkPath(rom.id, 'boxart');
+              }
+            }
+          } else {
+            // Prefer 3D
+            sourceArtPath = this.config.getArtworkPath(rom.id, 'boxart', '3d');
+            try {
+              await fs.access(sourceArtPath);
+            } catch {
+              // Try 2D as fallback
+              sourceArtPath = this.config.getArtworkPath(rom.id, 'boxart', '2d');
+              try {
+                await fs.access(sourceArtPath);
+              } catch {
+                // Try default boxart
+                sourceArtPath = this.config.getArtworkPath(rom.id, 'boxart');
+              }
+            }
+          }
 
           try {
-            await fs.access(artPath);
+            await fs.access(sourceArtPath);
 
-            // Artwork exists, copy it
-            const artDir = path.join(targetDir, artType);
+            // Artwork exists, copy it to firmware-specific location
+            const artDir = path.join(targetDir, artworkFolder);
             await fs.mkdir(artDir, { recursive: true });
 
-            const artFilename = path.basename(rom.filename, rom.extension) + '.jpg';
+            // Use firmware-specific filename format
+            const artFilename = path.basename(rom.filename, rom.extension) + '.' + (artworkSettings.format || 'png');
             const targetArtPath = path.join(artDir, artFilename);
 
-            await fs.copyFile(artPath, targetArtPath);
+            // Copy artwork
+            // TODO: Add image resizing to match artworkSettings.dimensions if autoConvert is enabled
+            // This would require adding an image processing library like 'sharp'
+            await fs.copyFile(sourceArtPath, targetArtPath);
             results.synced++;
           } catch {
             // Artwork doesn't exist, skip
+            results.skipped++;
           }
         }
       } catch (error) {

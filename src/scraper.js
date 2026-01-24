@@ -204,26 +204,73 @@ class ScreenScraper {
   }
 
   extractMediaUrls(medias) {
-    const mediaUrls = {};
-
-    // Map ScreenScraper media types to our types
-    const mediaTypeMap = {
-      'box-2D': 'boxart',
-      'box-3D': 'boxart',
-      'screenmarquee': 'banner',
-      'sstitle': 'screenshot',
-      'ss': 'screenshot',
-      'fanart': 'fanart'
+    const mediaUrls = {
+      boxart: {},
+      boxart2d: {},
+      boxart3d: {},
+      screenshot: null,
+      banner: null,
+      fanart: null
     };
+
+    const boxartPrefs = this.config.get('artwork.boxartPreferences') || {};
+    const preferredRegion = boxartPrefs.preferredRegion || 'us';
+    const fallbackRegions = boxartPrefs.fallbackRegions || ['wor', 'us', 'eu', 'jp'];
+    const downloadAll = boxartPrefs.downloadAllVariants || false;
 
     for (const media of medias) {
       const mediaType = media.type;
-      const ourType = mediaTypeMap[mediaType];
+      const region = media.region || 'wor';
 
-      if (ourType && media.url) {
-        // Prefer higher resolution, or first found
-        if (!mediaUrls[ourType] || media.format === 'png') {
-          mediaUrls[ourType] = media.url;
+      // Handle different boxart types separately
+      if (mediaType === 'box-2D') {
+        if (!mediaUrls.boxart2d[region] && media.url) {
+          mediaUrls.boxart2d[region] = media.url;
+        }
+      } else if (mediaType === 'box-3D') {
+        if (!mediaUrls.boxart3d[region] && media.url) {
+          mediaUrls.boxart3d[region] = media.url;
+        }
+      } else if (mediaType === 'box-2D-side' || mediaType === 'box-spine') {
+        if (!mediaUrls.boxart.spine && media.url) {
+          mediaUrls.boxart.spine = media.url;
+        }
+      } else if (mediaType === 'screenmarquee') {
+        if (!mediaUrls.banner && media.url) {
+          mediaUrls.banner = media.url;
+        }
+      } else if (mediaType === 'sstitle' || mediaType === 'ss') {
+        if (!mediaUrls.screenshot && media.url) {
+          mediaUrls.screenshot = media.url;
+        }
+      } else if (mediaType === 'fanart') {
+        if (!mediaUrls.fanart && media.url) {
+          mediaUrls.fanart = media.url;
+        }
+      }
+    }
+
+    // Select best boxart based on preferences
+    const preferredStyle = boxartPrefs.preferredStyle || '2d';
+    const boxartSource = preferredStyle === '3d' ? mediaUrls.boxart3d : mediaUrls.boxart2d;
+
+    // Try preferred region first, then fallbacks
+    for (const region of [preferredRegion, ...fallbackRegions]) {
+      if (boxartSource[region]) {
+        mediaUrls.boxart.primary = boxartSource[region];
+        mediaUrls.boxart.region = region;
+        break;
+      }
+    }
+
+    // If no preferred style found, try the other style
+    if (!mediaUrls.boxart.primary) {
+      const altSource = preferredStyle === '3d' ? mediaUrls.boxart2d : mediaUrls.boxart3d;
+      for (const region of [preferredRegion, ...fallbackRegions]) {
+        if (altSource[region]) {
+          mediaUrls.boxart.primary = altSource[region];
+          mediaUrls.boxart.region = region;
+          break;
         }
       }
     }
@@ -294,11 +341,51 @@ class ScreenScraper {
 
       // Download requested artwork types
       const downloadedArtwork = {};
+      const boxartPrefs = this.config.get('artwork.boxartPreferences') || {};
+      const downloadAll = boxartPrefs.downloadAllVariants || false;
 
       for (const artType of artworkTypes) {
-        if (gameInfo.media[artType]) {
-          await this.waitForRateLimit();
+        // Handle boxart with variants
+        if (artType === 'boxart') {
+          // Download primary (preferred) boxart
+          if (gameInfo.media.boxart.primary) {
+            await this.waitForRateLimit();
+            const artPath = this.config.getArtworkPath(rom.id, 'boxart');
+            await this.downloadImage(gameInfo.media.boxart.primary, artPath);
+            downloadedArtwork.boxart = artPath;
+            downloadedArtwork.boxartRegion = gameInfo.media.boxart.region || 'unknown';
+          }
 
+          // Optionally download all variants
+          if (downloadAll) {
+            // Download best 2D variant
+            const preferredRegion = boxartPrefs.preferredRegion || 'us';
+            const fallbacks = boxartPrefs.fallbackRegions || ['wor', 'us', 'eu', 'jp'];
+
+            for (const region of [preferredRegion, ...fallbacks]) {
+              if (gameInfo.media.boxart2d[region]) {
+                await this.waitForRateLimit();
+                const artPath = this.config.getArtworkPath(rom.id, 'boxart') + '.2d.jpg';
+                await this.downloadImage(gameInfo.media.boxart2d[region], artPath);
+                downloadedArtwork.boxart2d = artPath;
+                break;
+              }
+            }
+
+            // Download best 3D variant
+            for (const region of [preferredRegion, ...fallbacks]) {
+              if (gameInfo.media.boxart3d[region]) {
+                await this.waitForRateLimit();
+                const artPath = this.config.getArtworkPath(rom.id, 'boxart') + '.3d.jpg';
+                await this.downloadImage(gameInfo.media.boxart3d[region], artPath);
+                downloadedArtwork.boxart3d = artPath;
+                break;
+              }
+            }
+          }
+        } else if (gameInfo.media[artType]) {
+          // Handle other artwork types (screenshot, banner, fanart)
+          await this.waitForRateLimit();
           const artPath = this.config.getArtworkPath(rom.id, artType);
           await this.downloadImage(gameInfo.media[artType], artPath);
           downloadedArtwork[artType] = artPath;

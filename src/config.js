@@ -31,6 +31,7 @@ class ConfigManager {
         {
           id: 'miyoo-mini',
           name: 'Miyoo Mini Plus',
+          firmware: 'OnionOS',
           enabled: false,
           basePath: '',
           systemMappings: {
@@ -43,11 +44,20 @@ class ConfigManager {
             'Sega Master System': 'MS',
             'Game Gear': 'GG',
             'PlayStation': 'PS'
+          },
+          artworkSettings: {
+            enabled: true,
+            folder: 'Imgs',
+            dimensions: { width: 251, height: 361 },
+            format: 'png',
+            preferredType: '2d',
+            preferredRegion: 'us'
           }
         },
         {
           id: 'anbernic-rg35xx',
           name: 'Anbernic RG35XX',
+          firmware: 'GarlicOS',
           enabled: false,
           basePath: '',
           systemMappings: {
@@ -61,11 +71,47 @@ class ConfigManager {
             'Sega Master System': 'roms/MS',
             'Game Gear': 'roms/GG',
             'PlayStation': 'roms/PS1'
+          },
+          artworkSettings: {
+            enabled: true,
+            folder: 'Imgs',
+            dimensions: { width: 251, height: 361 },
+            format: 'png',
+            preferredType: '2d',
+            preferredRegion: 'us'
+          }
+        },
+        {
+          id: 'anbernic-rg35xx-knulli',
+          name: 'Anbernic RG35XX (Knulli/MuOS)',
+          firmware: 'Knulli',
+          enabled: false,
+          basePath: '',
+          systemMappings: {
+            'Nintendo Entertainment System': 'roms/nes',
+            'Super Nintendo': 'roms/snes',
+            'Game Boy': 'roms/gb',
+            'Game Boy Color': 'roms/gbc',
+            'Game Boy Advance': 'roms/gba',
+            'Nintendo 64': 'roms/n64',
+            'Sega Genesis': 'roms/genesis',
+            'Sega Master System': 'roms/mastersystem',
+            'Game Gear': 'roms/gamegear',
+            'PlayStation': 'roms/psx'
+          },
+          artworkSettings: {
+            enabled: true,
+            folder: '.boxart',
+            dimensions: { width: 400, height: 300 },
+            format: 'png',
+            preferredType: '2d',
+            preferredRegion: 'us'
           }
         },
         {
           id: 'steam-deck',
           name: 'Steam Deck',
+          firmware: 'EmuDeck',
           enabled: false,
           basePath: '',
           systemMappings: {
@@ -80,11 +126,20 @@ class ConfigManager {
             'PlayStation': 'Emulation/roms/psx',
             'GameCube': 'Emulation/roms/gc',
             'PlayStation/GameCube/Wii': 'Emulation/roms/wii'
+          },
+          artworkSettings: {
+            enabled: true,
+            folder: 'boxart',
+            dimensions: { width: 600, height: 900 },
+            format: 'png',
+            preferredType: '3d',
+            preferredRegion: 'us'
           }
         },
         {
           id: 'retroid-pocket',
           name: 'Retroid Pocket',
+          firmware: 'Android',
           enabled: false,
           basePath: '',
           systemMappings: {
@@ -98,20 +153,44 @@ class ConfigManager {
             'Sega Genesis': 'roms/GENESIS',
             'PlayStation': 'roms/PS1',
             'PSP': 'roms/PSP'
+          },
+          artworkSettings: {
+            enabled: true,
+            folder: 'boxart',
+            dimensions: { width: 400, height: 600 },
+            format: 'png',
+            preferredType: '3d',
+            preferredRegion: 'us'
           }
         },
         {
           id: 'custom',
           name: 'Custom Profile',
+          firmware: 'Custom',
           enabled: false,
           basePath: '',
-          systemMappings: {}
+          systemMappings: {},
+          artworkSettings: {
+            enabled: true,
+            folder: 'boxart',
+            dimensions: { width: 400, height: 600 },
+            format: 'png',
+            preferredType: '2d',
+            preferredRegion: 'us'
+          }
         }
       ],
       artwork: {
         enabled: true,
         types: ['boxart', 'screenshot', 'banner', 'fanart'],
-        defaultType: 'boxart'
+        defaultType: 'boxart',
+        boxartPreferences: {
+          preferredStyle: '2d', // '2d', '3d', 'spine', 'full'
+          preferredRegion: 'us', // 'us', 'eu', 'jp', 'wor' (world)
+          fallbackRegions: ['wor', 'us', 'eu', 'jp'],
+          downloadAllVariants: false, // Download all boxart types
+          autoConvert: true // Auto-convert to device specs on sync
+        }
       },
       scanning: {
         recursive: true,
@@ -206,13 +285,20 @@ class ConfigManager {
     return false;
   }
 
-  getArtworkPath(romId, artworkType = 'boxart') {
+  getArtworkPath(romId, artworkType = 'boxart', variant = null) {
     // Validate artworkType to prevent path traversal
     const allowedTypes = ['boxart', 'screenshots', 'banners', 'fanart'];
     if (!allowedTypes.includes(artworkType)) {
       artworkType = 'boxart';
     }
-    return path.join(this.artworkPath, artworkType, `${romId}.jpg`);
+
+    // Handle boxart variants (2d, 3d)
+    let filename = `${romId}.jpg`;
+    if (artworkType === 'boxart' && variant) {
+      filename = `${romId}.${variant}.jpg`;
+    }
+
+    return path.join(this.artworkPath, artworkType, filename);
   }
 
   async importArtwork(romId, artworkType, sourcePath) {
