@@ -17,10 +17,17 @@ const navItems = document.querySelectorAll('.nav-item');
 
 // Initialize
 async function init() {
-  await loadRoms();
-  await loadSystems();
-  await updateStats();
-  setupEventListeners();
+  try {
+    console.log('Initializing RomTunes...');
+    await loadRoms();
+    await loadSystems();
+    await updateStats();
+    setupEventListeners();
+    console.log('RomTunes initialized successfully');
+  } catch (error) {
+    console.error('Error during initialization:', error);
+    alert('Failed to initialize RomTunes. Check the console for details.');
+  }
 }
 
 // Setup Event Listeners
@@ -174,15 +181,20 @@ function renderRoms() {
     return;
   }
 
-  if (currentView === 'grid') {
-    renderGridView();
-  } else {
-    renderListView();
+  try {
+    if (currentView === 'grid') {
+      renderGridView();
+    } else {
+      renderListView();
+    }
+  } catch (error) {
+    console.error('Error rendering ROMs:', error);
+    alert('Error rendering ROMs. Check the console for details.');
   }
 }
 
 // Render Grid View
-async function renderGridView() {
+function renderGridView() {
   const grid = document.createElement('div');
   grid.className = 'rom-grid';
 
@@ -219,6 +231,7 @@ async function renderGridView() {
 
     // Add click handler to open detail modal
     card.addEventListener('click', () => {
+      console.log('ROM card clicked:', rom.name);
       openRomDetail(rom);
     });
 
@@ -227,6 +240,7 @@ async function renderGridView() {
 
   romContainer.innerHTML = '';
   romContainer.appendChild(grid);
+  console.log(`Rendered ${roms.length} ROMs in grid view`);
 }
 
 // Render List View
@@ -259,6 +273,7 @@ function renderListView() {
 
     // Add click handler to open detail modal
     row.addEventListener('click', () => {
+      console.log('ROM row clicked:', rom.name);
       openRomDetail(rom);
     });
 
@@ -267,6 +282,7 @@ function renderListView() {
 
   romContainer.innerHTML = '';
   romContainer.appendChild(list);
+  console.log(`Rendered ${roms.length} ROMs in list view`);
 }
 
 // Toggle Favorite
@@ -336,6 +352,7 @@ importScreenshotBtn.addEventListener('click', () => importArtwork('screenshot'))
 scrapeRomBtn.addEventListener('click', scrapeCurrentRom);
 
 async function openRomDetail(rom) {
+  console.log('Opening ROM detail for:', rom);
   currentRom = rom;
 
   // Set basic info
