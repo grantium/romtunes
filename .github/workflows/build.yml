@@ -56,9 +56,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: romtunes-macos
-          path: |
-            dist/*.dmg
-            dist/*.zip
+          path: dist/*.dmg
           retention-days: 7
 
       - name: Upload artifacts (Linux)
@@ -100,7 +98,6 @@ jobs:
         with:
           files: |
             artifacts/romtunes-macos/*.dmg
-            artifacts/romtunes-macos/*.zip
             artifacts/romtunes-linux/*.AppImage
             artifacts/romtunes-linux/*.deb
             artifacts/romtunes-windows/*.exe
