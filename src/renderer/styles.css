@@ -16,6 +16,19 @@ button, input, select {
   -webkit-app-region: no-drag;
 }
 
+/* Fix draggable region blocking clicks on interactive elements */
+.rom-card,
+.rom-row,
+.nav-item,
+.rom-favorite,
+.rom-row-favorite,
+.sidebar,
+.main-content,
+.modal,
+.rom-container {
+  -webkit-app-region: no-drag;
+}
+
 .app-container {
   display: flex;
   height: 100vh;
