@@ -50,6 +50,14 @@ function setupSettingsListeners() {
     scrapeArtworkBtn.addEventListener('click', startBulkScrape);
   }
 
+  // Scraper provider selection
+  const scraperProvider = document.getElementById('scraper-provider');
+  if (scraperProvider) {
+    scraperProvider.addEventListener('change', () => {
+      updateScraperProviderUI(scraperProvider.value);
+    });
+  }
+
   // Tab switching
   tabBtns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -128,6 +136,7 @@ function loadScraperSettings() {
   const scraperConfig = currentSettings.scraper || {};
 
   const scraperEnabled = document.getElementById('scraper-enabled');
+  const scraperProvider = document.getElementById('scraper-provider');
   const scraperUsername = document.getElementById('scraper-username');
   const scraperPassword = document.getElementById('scraper-password');
   const scraperBoxart = document.getElementById('scraper-boxart');
@@ -136,6 +145,10 @@ function loadScraperSettings() {
   const scraperFanart = document.getElementById('scraper-fanart');
 
   if (scraperEnabled) scraperEnabled.checked = scraperConfig.enabled || false;
+  if (scraperProvider) {
+    scraperProvider.value = scraperConfig.provider || 'thegamesdb';
+    updateScraperProviderUI(scraperProvider.value);
+  }
   if (scraperUsername) scraperUsername.value = scraperConfig.credentials?.username || '';
   if (scraperPassword) scraperPassword.value = scraperConfig.credentials?.password || '';
 
@@ -144,6 +157,13 @@ function loadScraperSettings() {
   if (scraperScreenshot) scraperScreenshot.checked = artworkTypes.includes('screenshot');
   if (scraperBanner) scraperBanner.checked = artworkTypes.includes('banner');
   if (scraperFanart) scraperFanart.checked = artworkTypes.includes('fanart');
+}
+
+function updateScraperProviderUI(provider) {
+  const credentialsSection = document.getElementById('screenscraper-credentials');
+  if (credentialsSection) {
+    credentialsSection.style.display = provider === 'screenscraper' ? 'block' : 'none';
+  }
 }
 
 function renderProfiles() {
@@ -288,6 +308,7 @@ async function saveSettings() {
 
   // Save scraper settings
   const scraperEnabled = document.getElementById('scraper-enabled').checked;
+  const scraperProvider = document.getElementById('scraper-provider').value;
   const scraperUsername = document.getElementById('scraper-username').value;
   const scraperPassword = document.getElementById('scraper-password').value;
 
@@ -298,6 +319,7 @@ async function saveSettings() {
   if (document.getElementById('scraper-fanart').checked) artworkTypes.push('fanart');
 
   await window.electronAPI.setConfig('scraper.enabled', scraperEnabled);
+  await window.electronAPI.setConfig('scraper.provider', scraperProvider);
   await window.electronAPI.setConfig('scraper.credentials', {
     username: scraperUsername,
     password: scraperPassword
@@ -468,8 +490,29 @@ async function startBulkScrape() {
 
 function updateScrapeProgress(progress) {
   const bulkScrapeBtn = document.getElementById('bulk-scrape-btn');
+  const scrapeArtworkBtn = document.getElementById('scrape-artwork-btn');
+
+  const statusEmoji = {
+    'success': '✓',
+    'failed': '✗',
+    'error': '✗',
+    'skipped': '⊘'
+  };
+
+  const emoji = statusEmoji[progress.status] || '';
+  const displayText = `${emoji} ${progress.current}/${progress.total}: ${progress.rom}`;
+  const detailText = progress.message ? `\n${progress.message}` : '';
+
+  console.log(`[Scrape Progress] ${displayText}${detailText}`);
+
   if (bulkScrapeBtn) {
     bulkScrapeBtn.textContent = `Scraping... (${progress.current}/${progress.total})`;
+    bulkScrapeBtn.title = `${progress.rom}: ${progress.message || progress.status}`;
+  }
+
+  if (scrapeArtworkBtn) {
+    scrapeArtworkBtn.textContent = `🎨 Scraping... (${progress.current}/${progress.total})`;
+    scrapeArtworkBtn.title = `${progress.rom}: ${progress.message || progress.status}`;
   }
 }
 

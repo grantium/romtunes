@@ -34,8 +34,6 @@ class ScreenScraper {
     const credentials = this.config.get('scraper.credentials') || {};
 
     const queryParams = {
-      devid: this.devid,
-      devpassword: this.devpassword,
       softname: this.softname,
       output: 'json',
       ...params
@@ -47,11 +45,27 @@ class ScreenScraper {
       queryParams.sspassword = credentials.password;
     }
 
+    // Note: devid/devpassword are optional but provide better rate limits
+    // Users can register as a developer at screenscraper.fr for higher quotas
+    if (this.devid) {
+      queryParams.devid = this.devid;
+    }
+    if (this.devpassword) {
+      queryParams.devpassword = this.devpassword;
+    }
+
     const queryString = Object.entries(queryParams)
+      .filter(([key, value]) => value !== '' && value !== null && value !== undefined)
       .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
       .join('&');
 
-    return `${this.baseUrl}/${endpoint}.php?${queryString}`;
+    const url = `${this.baseUrl}/${endpoint}.php?${queryString}`;
+
+    // Debug log (remove credentials for security)
+    const debugUrl = url.replace(/sspassword=[^&]+/, 'sspassword=***').replace(/devpassword=[^&]+/, 'devpassword=***');
+    console.log('ScreenScraper API URL:', debugUrl);
+
+    return url;
   }
 
   async makeRequest(url) {
@@ -429,21 +443,26 @@ class ScreenScraper {
         };
       }
 
+      console.log('[ScreenScraper] Testing credentials for user:', credentials.username);
+
       const url = this.buildUrl('jeuInfos', {
         systemeid: 1,
         romnom: 'Sonic'
       });
 
       await this.waitForRateLimit();
-      await this.makeRequest(url);
+      const response = await this.makeRequest(url);
 
+      console.log('[ScreenScraper] Credentials test successful!');
       return { success: true };
     } catch (error) {
+      console.error('[ScreenScraper] Credentials test failed:', error.message);
+
       // Provide more helpful error messages
       if (error.message.includes('Erreur de login') || error.message.includes('identifiants')) {
         return {
           success: false,
-          error: 'Invalid ScreenScraper credentials. Please check your username and password.'
+          error: 'Invalid ScreenScraper credentials. Check your username and password. Note: ScreenScraper may require developer credentials for API access. Visit https://www.screenscraper.fr/forumsujets.php?suj=784 to apply for dev credentials.'
         };
       }
       return { success: false, error: error.message };
