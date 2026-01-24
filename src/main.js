@@ -252,7 +252,12 @@ ipcMain.handle('delete-rom', async (event, id) => {
 });
 
 ipcMain.handle('update-rom', async (event, id, updates) => {
-  return db.updateRom(id, updates);
+  try {
+    return db.updateRom(id, updates);
+  } catch (error) {
+    console.error('Error updating ROM:', error);
+    throw error;
+  }
 });
 
 ipcMain.handle('get-stats', async () => {
