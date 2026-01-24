@@ -3,8 +3,11 @@ node_modules/
 
 # Build outputs
 dist/
-build/
 out/
+
+# Ignore build cache files but keep build directory for icons
+build/*.cache
+build/builder-*.yml
 
 # Database files
 *.db

@@ -57,8 +57,7 @@
       "target": [
         "dmg",
         "zip"
-      ],
-      "icon": "build/icon.icns"
+      ]
     },
     "win": {
       "target": [
@@ -74,8 +73,7 @@
             "x64"
           ]
         }
-      ],
-      "icon": "build/icon.ico"
+      ]
     },
     "linux": {
       "target": [
@@ -83,7 +81,6 @@
         "deb"
       ],
       "category": "Game",
-      "icon": "build/icon.png",
       "maintainer": "support@romtunes.app"
     },
     "nsis": {
