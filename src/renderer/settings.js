@@ -229,17 +229,33 @@ function renderProfiles() {
               ([system, folder]) => `
             <div class="mapping-item">
               <span class="mapping-system" title="${system}">${system}</span>
-              <span class="mapping-folder">${folder}</span>
+              <input type="text"
+                     class="mapping-folder-input"
+                     value="${folder}"
+                     data-profile="${profile.id}"
+                     data-system="${system}"
+                     placeholder="Folder path (e.g., roms/NES)"/>
+              <button class="btn-small btn-danger"
+                      onclick="removeMapping('${profile.id}', '${system}')"
+                      title="Remove mapping">✕</button>
             </div>
           `
             )
             .join('')}
+          <div class="mapping-add">
+            <button class="btn-small" onclick="showAddMappingDialog('${profile.id}')">
+              + Add System Mapping
+            </button>
+          </div>
         </div>
       </details>
     </div>
   `
     )
     .join('');
+
+  // Setup listeners for mapping inputs after rendering
+  setTimeout(() => setupMappingListeners(), 100);
 }
 
 async function toggleProfile(profileId, enabled) {
@@ -534,9 +550,69 @@ function updateScrapeProgress(progress) {
   }
 }
 
+async function saveMapping(profileId, system, folder) {
+  const profile = syncProfiles.find(p => p.id === profileId);
+  if (profile) {
+    profile.systemMappings[system] = folder;
+    await window.electronAPI.updateSyncProfile(profileId, {
+      systemMappings: profile.systemMappings
+    });
+  }
+}
+
+async function removeMapping(profileId, system) {
+  const confirmed = confirm(`Remove ${system} mapping?`);
+  if (!confirmed) return;
+
+  const profile = syncProfiles.find(p => p.id === profileId);
+  if (profile) {
+    delete profile.systemMappings[system];
+    await window.electronAPI.updateSyncProfile(profileId, {
+      systemMappings: profile.systemMappings
+    });
+    renderProfiles();
+  }
+}
+
+async function showAddMappingDialog(profileId) {
+  const system = prompt('Enter system name (e.g., "Nintendo Entertainment System"):');
+  if (!system) return;
+
+  const folder = prompt('Enter folder path (e.g., "roms/NES" or "FC"):');
+  if (!folder) return;
+
+  const profile = syncProfiles.find(p => p.id === profileId);
+  if (profile) {
+    profile.systemMappings[system] = folder;
+    await window.electronAPI.updateSyncProfile(profileId, {
+      systemMappings: profile.systemMappings
+    });
+    renderProfiles();
+  }
+}
+
+// Auto-save mappings when inputs change
+function setupMappingListeners() {
+  const mappingInputs = document.querySelectorAll('.mapping-folder-input');
+  mappingInputs.forEach(input => {
+    let timeout;
+    input.addEventListener('input', (e) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        const profileId = e.target.dataset.profile;
+        const system = e.target.dataset.system;
+        const folder = e.target.value;
+        saveMapping(profileId, system, folder);
+      }, 1000); // Save 1 second after user stops typing
+    });
+  });
+}
+
 // Make functions globally accessible
 window.toggleProfile = toggleProfile;
 window.selectBasePath = selectBasePath;
+window.removeMapping = removeMapping;
+window.showAddMappingDialog = showAddMappingDialog;
 
 // Initialize on load
 initSettings();
