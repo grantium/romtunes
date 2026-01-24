@@ -137,6 +137,7 @@ function loadScraperSettings() {
 
   const scraperEnabled = document.getElementById('scraper-enabled');
   const scraperProvider = document.getElementById('scraper-provider');
+  const thegamesdbApiKey = document.getElementById('thegamesdb-apikey');
   const scraperUsername = document.getElementById('scraper-username');
   const scraperPassword = document.getElementById('scraper-password');
   const scraperBoxart = document.getElementById('scraper-boxart');
@@ -149,6 +150,14 @@ function loadScraperSettings() {
     scraperProvider.value = scraperConfig.provider || 'thegamesdb';
     updateScraperProviderUI(scraperProvider.value);
   }
+
+  // Load TheGamesDB API key
+  if (thegamesdbApiKey) {
+    const thegamesdbConfig = scraperConfig.thegamesdb || {};
+    thegamesdbApiKey.value = thegamesdbConfig.apiKey || '';
+  }
+
+  // Load ScreenScraper credentials
   if (scraperUsername) scraperUsername.value = scraperConfig.credentials?.username || '';
   if (scraperPassword) scraperPassword.value = scraperConfig.credentials?.password || '';
 
@@ -160,9 +169,14 @@ function loadScraperSettings() {
 }
 
 function updateScraperProviderUI(provider) {
-  const credentialsSection = document.getElementById('screenscraper-credentials');
-  if (credentialsSection) {
-    credentialsSection.style.display = provider === 'screenscraper' ? 'block' : 'none';
+  const thegamesdbSection = document.getElementById('thegamesdb-credentials');
+  const screenscraperSection = document.getElementById('screenscraper-credentials');
+
+  if (thegamesdbSection) {
+    thegamesdbSection.style.display = provider === 'thegamesdb' ? 'block' : 'none';
+  }
+  if (screenscraperSection) {
+    screenscraperSection.style.display = provider === 'screenscraper' ? 'block' : 'none';
   }
 }
 
@@ -309,6 +323,7 @@ async function saveSettings() {
   // Save scraper settings
   const scraperEnabled = document.getElementById('scraper-enabled').checked;
   const scraperProvider = document.getElementById('scraper-provider').value;
+  const thegamesdbApiKey = document.getElementById('thegamesdb-apikey').value;
   const scraperUsername = document.getElementById('scraper-username').value;
   const scraperPassword = document.getElementById('scraper-password').value;
 
@@ -320,6 +335,9 @@ async function saveSettings() {
 
   await window.electronAPI.setConfig('scraper.enabled', scraperEnabled);
   await window.electronAPI.setConfig('scraper.provider', scraperProvider);
+  await window.electronAPI.setConfig('scraper.thegamesdb', {
+    apiKey: thegamesdbApiKey
+  });
   await window.electronAPI.setConfig('scraper.credentials', {
     username: scraperUsername,
     password: scraperPassword
