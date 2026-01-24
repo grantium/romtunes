@@ -364,6 +364,11 @@ async function startSync() {
       syncProgressText.textContent += ` (${result.errors.length} errors)`;
     }
 
+    // Show helpful message if provided
+    if (result.message) {
+      syncProgressText.textContent += `\n${result.message}`;
+    }
+
     // Update stats
     await updateSyncStatusDisplay();
     await updateStats();

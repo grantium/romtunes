@@ -9,9 +9,9 @@ class ScreenScraper {
     this.config = config;
     this.baseUrl = 'https://www.screenscraper.fr/api2';
 
-    // Dev credentials for RomTunes
-    // Note: Users should register at screenscraper.fr for better rate limits
-    this.devid = 'romtunes';
+    // Dev credentials - users must register their own at screenscraper.fr
+    // Without valid credentials, the API will reject requests
+    this.devid = '';
     this.devpassword = '';
     this.softname = 'RomTunes';
     this.lastRequestTime = 0;
@@ -419,6 +419,16 @@ class ScreenScraper {
 
   async testCredentials() {
     try {
+      const credentials = this.config.get('scraper.credentials') || {};
+
+      // Check if user has provided credentials
+      if (!credentials.username || !credentials.password) {
+        return {
+          success: false,
+          error: 'Please enter your ScreenScraper username and password. Register for free at screenscraper.fr to get API access.'
+        };
+      }
+
       const url = this.buildUrl('jeuInfos', {
         systemeid: 1,
         romnom: 'Sonic'
@@ -429,6 +439,13 @@ class ScreenScraper {
 
       return { success: true };
     } catch (error) {
+      // Provide more helpful error messages
+      if (error.message.includes('Erreur de login') || error.message.includes('identifiants')) {
+        return {
+          success: false,
+          error: 'Invalid ScreenScraper credentials. Please check your username and password.'
+        };
+      }
       return { success: false, error: error.message };
     }
   }
