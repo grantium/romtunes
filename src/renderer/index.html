@@ -164,6 +164,54 @@
               <option value="fanart">Fan Art</option>
             </select>
           </div>
+
+          <div class="setting-section">
+            <h3>Box Art Preferences</h3>
+
+            <div class="setting-group">
+              <label class="setting-label">Preferred Box Art Style</label>
+              <select id="boxart-style" class="setting-select">
+                <option value="2d">2D (Flat Front Cover)</option>
+                <option value="3d">3D (Perspective Box)</option>
+              </select>
+              <p style="font-size: 12px; color: #888; margin-top: 4px;">
+                2D artwork is better for devices with small screens. 3D artwork looks better on larger displays.
+              </p>
+            </div>
+
+            <div class="setting-group">
+              <label class="setting-label">Preferred Region</label>
+              <select id="boxart-region" class="setting-select">
+                <option value="us">North America (US)</option>
+                <option value="eu">Europe (EU)</option>
+                <option value="jp">Japan (JP)</option>
+                <option value="wor">World/Region-Free</option>
+              </select>
+              <p style="font-size: 12px; color: #888; margin-top: 4px;">
+                If artwork for your preferred region isn't available, other regions will be used as fallback.
+              </p>
+            </div>
+
+            <div class="setting-group">
+              <label class="setting-label">
+                <input type="checkbox" id="boxart-download-all" />
+                Download All Box Art Variants
+              </label>
+              <p style="font-size: 12px; color: #888; margin-left: 24px;">
+                When enabled, downloads both 2D and 3D variants when scraping. Useful if you sync to multiple devices with different artwork preferences.
+              </p>
+            </div>
+
+            <div class="setting-group">
+              <label class="setting-label">
+                <input type="checkbox" id="boxart-auto-convert" checked />
+                Auto-Convert for Device Sync
+              </label>
+              <p style="font-size: 12px; color: #888; margin-left: 24px;">
+                Automatically resize box art to match device requirements when syncing (e.g., 251x361 for GarlicOS, 400x300 for Knulli).
+              </p>
+            </div>
+          </div>
         </div>
 
         <!-- Scraper Tab -->

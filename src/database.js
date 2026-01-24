@@ -50,6 +50,9 @@ class RomDatabase {
 
     const newColumns = [
       'boxart TEXT',
+      'boxart2d TEXT',
+      'boxart3d TEXT',
+      'boxartRegion TEXT',
       'screenshot TEXT',
       'banner TEXT',
       'fanart TEXT',
@@ -140,7 +143,8 @@ class RomDatabase {
     const allowedFields = [
       'name', 'filename', 'path', 'size', 'extension', 'system',
       'dateAdded', 'lastPlayed', 'playCount', 'favorite', 'rating',
-      'boxart', 'screenshot', 'banner', 'fanart', 'synced', 'lastSynced'
+      'boxart', 'boxart2d', 'boxart3d', 'boxartRegion',
+      'screenshot', 'banner', 'fanart', 'synced', 'lastSynced'
     ];
 
     const fields = [];

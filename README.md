@@ -27,11 +27,15 @@
 
 ### Artwork Management
 - **Multiple Artwork Types** - Support for box art, screenshots, banners, and fan art
+- **Advanced Box Art System** - Download and manage 2D (flat) and 3D (perspective) box art variants
+- **Region Support** - Prefer US, EU, JP, or World region artwork with automatic fallbacks
+- **Firmware-Specific Artwork** - Auto-configure artwork for OnionOS, GarlicOS, Knulli, MuOS, EmuDeck
+- **Device-Optimized Sync** - Automatically select best artwork variant for each device
 - **Easy Import** - Drag and drop or select artwork files
 - **Auto-Scraping** - Integration with ScreenScraper.fr for automatic artwork download
 - **Bulk Operations** - Scrape artwork for entire library at once
 - **Smart Matching** - Searches by filename and CRC for accurate results
-- **Organized Storage** - Artwork stored in categorized folders
+- **Organized Storage** - Artwork stored in categorized folders with variants
 - **Visual Library** - Display artwork in grid view for beautiful browsing
 - **Per-ROM Management** - Import different artwork types for each game
 
@@ -157,6 +161,44 @@ RomTunes integrates with [ScreenScraper.fr](https://www.screenscraper.fr) to aut
 - Registered users get better rate limits and priority
 - Works best with clean ROM filenames
 - Falls back to CRC matching for better accuracy on small files
+
+#### Box Art Preferences
+
+RomTunes supports multiple box art variants to ensure optimal artwork for different devices:
+
+**Box Art Styles:**
+- **2D (Flat)**: Front cover artwork - best for small screens and handheld devices
+- **3D (Perspective)**: Box artwork with depth/perspective - better for larger displays
+
+**Region Support:**
+- Choose preferred region: **North America (US)**, **Europe (EU)**, **Japan (JP)**, or **World**
+- Automatic fallback to other regions if preferred isn't available
+- Different regions often have unique cover designs
+
+**Advanced Options:**
+1. Go to Settings → Artwork tab → Box Art Preferences
+2. Set **Preferred Box Art Style** (2D or 3D)
+3. Set **Preferred Region** (US, EU, JP, or World)
+4. Enable **Download All Variants** to save both 2D and 3D versions (useful for multi-device setups)
+5. Enable **Auto-Convert for Device Sync** to automatically resize artwork for each device
+
+**Firmware-Specific Artwork:**
+
+Each sync profile is pre-configured with optimal artwork settings:
+
+| Device | Firmware | Dimensions | Style | Format | Folder |
+|--------|----------|------------|-------|--------|--------|
+| Miyoo Mini Plus | OnionOS | 251×361 | 2D | PNG | Imgs |
+| Anbernic RG35XX | GarlicOS | 251×361 | 2D | PNG | Imgs |
+| Anbernic RG35XX | Knulli/MuOS | 400×300 | 2D | PNG | .boxart |
+| Steam Deck | EmuDeck | 600×900 | 3D | PNG | boxart |
+| Retroid Pocket | Android | 400×600 | 3D | PNG | boxart |
+
+When syncing, RomTunes automatically:
+- Selects the best box art variant for each device
+- Copies artwork to firmware-specific folders
+- Uses correct filenames and formats
+- (Future) Resizes artwork to match device requirements
 
 ### Syncing to Handheld Devices
 

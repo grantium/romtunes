@@ -100,6 +100,22 @@ async function loadSettings() {
   populateSyncProfileSelect();
   updateSyncStatusDisplay();
   loadScraperSettings();
+  loadArtworkSettings();
+}
+
+function loadArtworkSettings() {
+  const artworkConfig = currentSettings.artwork || {};
+  const boxartPrefs = artworkConfig.boxartPreferences || {};
+
+  const boxartStyle = document.getElementById('boxart-style');
+  const boxartRegion = document.getElementById('boxart-region');
+  const boxartDownloadAll = document.getElementById('boxart-download-all');
+  const boxartAutoConvert = document.getElementById('boxart-auto-convert');
+
+  if (boxartStyle) boxartStyle.value = boxartPrefs.preferredStyle || '2d';
+  if (boxartRegion) boxartRegion.value = boxartPrefs.preferredRegion || 'us';
+  if (boxartDownloadAll) boxartDownloadAll.checked = boxartPrefs.downloadAllVariants || false;
+  if (boxartAutoConvert) boxartAutoConvert.checked = boxartPrefs.autoConvert !== false; // Default true
 }
 
 function loadScraperSettings() {
@@ -130,7 +146,10 @@ function renderProfiles() {
       profile => `
     <div class="profile-card" data-profile-id="${profile.id}">
       <div class="profile-header">
-        <div class="profile-name">${profile.name}</div>
+        <div class="profile-name">
+          ${profile.name}
+          ${profile.firmware ? `<span style="font-size: 11px; color: #888; margin-left: 8px;">(${profile.firmware})</span>` : ''}
+        </div>
         <div class="profile-toggle">
           <span>Enabled</span>
           <label class="toggle-switch">
@@ -154,6 +173,13 @@ function renderProfiles() {
           </button>
         </div>
       </div>
+
+      ${profile.artworkSettings ? `
+      <div style="font-size: 12px; color: #888; margin-top: 8px; padding: 8px; background: rgba(255,255,255,0.02); border-radius: 4px;">
+        📦 Box Art: ${profile.artworkSettings.dimensions.width}x${profile.artworkSettings.dimensions.height} ${profile.artworkSettings.format.toUpperCase()}
+        (${profile.artworkSettings.preferredType === '2d' ? '2D' : '3D'} style, ${profile.artworkSettings.preferredRegion.toUpperCase()} region)
+      </div>
+      ` : ''}
 
       <details class="profile-mappings">
         <summary>System Folder Mappings (${Object.keys(profile.systemMappings || {}).length})</summary>
@@ -239,6 +265,20 @@ async function saveSettings() {
 
   await window.electronAPI.setConfig('artwork.enabled', artworkEnabled);
   await window.electronAPI.setConfig('artwork.defaultType', artworkDefaultType);
+
+  // Save boxart preferences
+  const boxartStyle = document.getElementById('boxart-style')?.value || '2d';
+  const boxartRegion = document.getElementById('boxart-region')?.value || 'us';
+  const boxartDownloadAll = document.getElementById('boxart-download-all')?.checked || false;
+  const boxartAutoConvert = document.getElementById('boxart-auto-convert')?.checked !== false;
+
+  await window.electronAPI.setConfig('artwork.boxartPreferences', {
+    preferredStyle: boxartStyle,
+    preferredRegion: boxartRegion,
+    fallbackRegions: ['wor', 'us', 'eu', 'jp'],
+    downloadAllVariants: boxartDownloadAll,
+    autoConvert: boxartAutoConvert
+  });
 
   // Save scraper settings
   const scraperEnabled = document.getElementById('scraper-enabled').checked;
