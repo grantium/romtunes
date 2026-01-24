@@ -6,7 +6,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
-    "postinstall": "electron-rebuild",
+    "postinstall": "electron-builder install-app-deps",
     "build": "electron-builder",
     "build:win": "electron-builder --win",
     "build:mac": "electron-builder --mac",
@@ -19,15 +19,25 @@
     "emulation",
     "game-library"
   ],
-  "author": "RomTunes",
+  "author": {
+    "name": "RomTunes",
+    "email": "support@romtunes.app"
+  },
+  "homepage": "https://github.com/yourusername/romtunes",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/romtunes.git"
+  },
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0 <=22.0.0"
   },
   "devDependencies": {
-    "@electron/rebuild": "^4.0.2",
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1"
+  },
+  "optionalDependencies": {
+    "dmg-license": "^1.0.11"
   },
   "dependencies": {
     "better-sqlite3": "^11.0.0"
@@ -73,7 +83,8 @@
         "deb"
       ],
       "category": "Game",
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "maintainer": "support@romtunes.app"
     },
     "nsis": {
       "oneClick": false,

@@ -420,6 +420,13 @@ npm run build:linux
 npm run build:all
 ```
 
+**Note:** Cross-platform building has limitations:
+- Windows builds work on Windows, macOS (with Wine), and Linux (with Wine)
+- macOS builds only work on macOS (requires Xcode)
+- Linux builds work on all platforms
+
+For the most reliable builds, use GitHub Actions which builds on native runners for each platform.
+
 ### Build Output
 
 After building, you'll find these files in `dist/`:
