@@ -23,6 +23,11 @@ Since RomTunes is currently unsigned, macOS Gatekeeper will block it from runnin
    ```
 4. Now you can drag RomTunes to Applications and open it normally
 
+**If already in Applications folder:**
+```bash
+xattr -cr "/Applications/RomTunes.app"
+```
+
 ### Why is this necessary?
 RomTunes is not code-signed with an Apple Developer certificate ($99/year). This is a security feature in macOS to prevent malware, but it also blocks legitimate unsigned apps. The methods above safely bypass this restriction.
 
