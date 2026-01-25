@@ -214,12 +214,64 @@ function renderProfiles() {
         </div>
       </div>
 
-      ${profile.artworkSettings ? `
-      <div style="font-size: 12px; color: #888; margin-top: 8px; padding: 8px; background: rgba(255,255,255,0.02); border-radius: 4px;">
-        📦 Box Art: ${profile.artworkSettings.dimensions.width}x${profile.artworkSettings.dimensions.height} ${profile.artworkSettings.format.toUpperCase()}
-        (${profile.artworkSettings.preferredType === '2d' ? '2D' : '3D'} style, ${profile.artworkSettings.preferredRegion.toUpperCase()} region)
-      </div>
-      ` : ''}
+      <details class="profile-artwork-settings" style="margin-top: 12px;">
+        <summary style="cursor: pointer; font-size: 13px; color: #888; margin-bottom: 8px; user-select: none;">
+          Artwork Settings
+        </summary>
+        <div class="artwork-settings-grid">
+          <div class="setting-row">
+            <label class="small-label">Artwork Folder:</label>
+            <input type="text" class="small-input"
+                   value="${profile.artworkSettings?.folder || 'Imgs'}"
+                   placeholder="Imgs"
+                   onchange="updateArtworkSetting('${profile.id}', 'folder', this.value)" />
+          </div>
+
+          <div class="setting-row">
+            <label class="small-label">Dimensions:</label>
+            <div style="display: flex; gap: 4px; align-items: center;">
+              <input type="number" class="small-input"
+                     value="${profile.artworkSettings?.dimensions?.width || 251}"
+                     onchange="updateArtworkSetting('${profile.id}', 'width', parseInt(this.value))"
+                     style="width: 70px;" />
+              <span style="color: #666;">×</span>
+              <input type="number" class="small-input"
+                     value="${profile.artworkSettings?.dimensions?.height || 361}"
+                     onchange="updateArtworkSetting('${profile.id}', 'height', parseInt(this.value))"
+                     style="width: 70px;" />
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <label class="small-label">Format:</label>
+            <select class="small-select"
+                    onchange="updateArtworkSetting('${profile.id}', 'format', this.value)">
+              <option value="png" ${profile.artworkSettings?.format === 'png' ? 'selected' : ''}>PNG</option>
+              <option value="jpg" ${profile.artworkSettings?.format === 'jpg' ? 'selected' : ''}>JPG</option>
+            </select>
+          </div>
+
+          <div class="setting-row">
+            <label class="small-label">Preferred Style:</label>
+            <select class="small-select"
+                    onchange="updateArtworkSetting('${profile.id}', 'preferredType', this.value)">
+              <option value="2d" ${profile.artworkSettings?.preferredType === '2d' ? 'selected' : ''}>2D (Flat)</option>
+              <option value="3d" ${profile.artworkSettings?.preferredType === '3d' ? 'selected' : ''}>3D (Perspective)</option>
+            </select>
+          </div>
+
+          <div class="setting-row">
+            <label class="small-label">Preferred Region:</label>
+            <select class="small-select"
+                    onchange="updateArtworkSetting('${profile.id}', 'preferredRegion', this.value)">
+              <option value="us" ${profile.artworkSettings?.preferredRegion === 'us' ? 'selected' : ''}>US</option>
+              <option value="eu" ${profile.artworkSettings?.preferredRegion === 'eu' ? 'selected' : ''}>EU</option>
+              <option value="jp" ${profile.artworkSettings?.preferredRegion === 'jp' ? 'selected' : ''}>JP</option>
+              <option value="wor" ${profile.artworkSettings?.preferredRegion === 'wor' ? 'selected' : ''}>World</option>
+            </select>
+          </div>
+        </div>
+      </details>
 
       <details class="profile-mappings">
         <summary>System Folder Mappings (${Object.keys(profile.systemMappings || {}).length})</summary>
@@ -608,11 +660,42 @@ function setupMappingListeners() {
   });
 }
 
+async function updateArtworkSetting(profileId, setting, value) {
+  const profile = syncProfiles.find(p => p.id === profileId);
+  if (!profile) return;
+
+  if (!profile.artworkSettings) {
+    profile.artworkSettings = {
+      enabled: true,
+      folder: 'Imgs',
+      dimensions: { width: 251, height: 361 },
+      format: 'png',
+      preferredType: '2d',
+      preferredRegion: 'us'
+    };
+  }
+
+  // Update the specific setting
+  if (setting === 'width' || setting === 'height') {
+    profile.artworkSettings.dimensions[setting] = value;
+  } else {
+    profile.artworkSettings[setting] = value;
+  }
+
+  // Save to config
+  await window.electronAPI.updateSyncProfile(profileId, {
+    artworkSettings: profile.artworkSettings
+  });
+
+  console.log(`Updated ${setting} for profile ${profileId}:`, value);
+}
+
 // Make functions globally accessible
 window.toggleProfile = toggleProfile;
 window.selectBasePath = selectBasePath;
 window.removeMapping = removeMapping;
 window.showAddMappingDialog = showAddMappingDialog;
+window.updateArtworkSetting = updateArtworkSetting;
 
 // Initialize on load
 initSettings();

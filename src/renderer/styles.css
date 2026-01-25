@@ -915,6 +915,58 @@ input:checked + .toggle-slider:before {
   border-top: 1px solid #2a2a2a;
 }
 
+/* Artwork Settings */
+.profile-artwork-settings summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 8px;
+  user-select: none;
+}
+
+.artwork-settings-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: #0a0a0a;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+.setting-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.small-label {
+  font-size: 12px;
+  color: #888;
+}
+
+.small-input,
+.small-select {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  padding: 6px 8px;
+  color: #fff;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.small-input:focus,
+.small-select:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.small-select {
+  cursor: pointer;
+}
+
 /* Sync UI */
 .sync-status {
   padding: 12px;
