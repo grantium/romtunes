@@ -266,25 +266,80 @@ function renderGridView() {
   }, 100);
 }
 
-// Render List View
+// Render List View - iTunes-style Table
 function renderListView() {
   const list = document.createElement('div');
   list.className = 'rom-list';
 
+  // Create table header
+  const header = document.createElement('div');
+  header.className = 'rom-table-header';
+
+  const columns = [
+    { key: null, label: '' },  // Favorite star column (not sortable)
+    { key: null, label: '' },  // Artwork column (not sortable)
+    { key: 'name', label: 'Name' },
+    { key: 'system', label: 'System' },
+    { key: 'extension', label: 'Type' },
+    { key: 'size', label: 'Size' },
+    { key: 'dateAdded', label: 'Date Added' }
+  ];
+
+  columns.forEach(column => {
+    const cell = document.createElement('div');
+    cell.className = 'rom-table-header-cell';
+    cell.textContent = column.label;
+
+    if (column.key) {
+      cell.classList.add('sortable');
+
+      // Add sorted indicator if this is the current sort column
+      if (currentFilter.sortBy === column.key) {
+        cell.classList.add(currentFilter.sortOrder === 'ASC' ? 'sorted-asc' : 'sorted-desc');
+      }
+
+      // Add click handler for sorting
+      cell.addEventListener('click', () => {
+        handleColumnSort(column.key);
+      });
+    }
+
+    header.appendChild(cell);
+  });
+
+  list.appendChild(header);
+
+  // Create table body
+  const body = document.createElement('div');
+  body.className = 'rom-table-body';
+
   roms.forEach(rom => {
     const row = document.createElement('div');
     row.className = 'rom-row';
+
+    // Check for artwork
+    const artworkPath = rom.boxart ? `file://${rom.boxart}` : null;
+    const artworkContent = artworkPath
+      ? `<img src="${artworkPath}" alt="${rom.name}" />`
+      : getSystemIcon(rom.system);
+
+    // Format date
+    const dateAdded = rom.dateAdded
+      ? new Date(rom.dateAdded).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : '—';
+
     row.innerHTML = `
-      <div class="rom-row-icon">${getSystemIcon(rom.system)}</div>
-      <div class="rom-row-info">
-        <div class="rom-row-name" title="${rom.name}">${rom.name}</div>
-        <div class="rom-row-path" title="${rom.path}">${rom.path}</div>
-      </div>
-      <div class="rom-row-system">${rom.system}</div>
-      <div class="rom-row-size">${formatBytes(rom.size)}</div>
       <div class="rom-row-favorite ${rom.favorite ? 'active' : ''}" data-id="${rom.id}">
         ${rom.favorite ? '⭐' : '☆'}
       </div>
+      <div class="rom-row-artwork">
+        ${artworkContent}
+      </div>
+      <div class="rom-row-name" title="${rom.name}">${rom.name}</div>
+      <div class="rom-row-system" title="${rom.system}">${rom.system}</div>
+      <div class="rom-row-extension">${rom.extension || '—'}</div>
+      <div class="rom-row-size">${formatBytes(rom.size)}</div>
+      <div class="rom-row-date">${dateAdded}</div>
     `;
 
     // Add favorite toggle
@@ -300,12 +355,29 @@ function renderListView() {
       openRomDetail(rom);
     });
 
-    list.appendChild(row);
+    body.appendChild(row);
   });
+
+  list.appendChild(body);
 
   romContainer.innerHTML = '';
   romContainer.appendChild(list);
   console.log(`Rendered ${roms.length} ROMs in list view`);
+}
+
+// Handle column sorting in table view
+function handleColumnSort(columnKey) {
+  // If clicking the same column, toggle sort order
+  if (currentFilter.sortBy === columnKey) {
+    currentFilter.sortOrder = currentFilter.sortOrder === 'ASC' ? 'DESC' : 'ASC';
+  } else {
+    // New column, default to ascending
+    currentFilter.sortBy = columnKey;
+    currentFilter.sortOrder = 'ASC';
+  }
+
+  // Reload with new sort
+  loadRoms();
 }
 
 // Toggle Favorite

@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
+const AdmZip = require('adm-zip');
 const Database = require('./database');
 const ConfigManager = require('./config');
 const SyncManager = require('./sync');
@@ -139,7 +140,7 @@ ipcMain.handle('scan-roms', async (event, folderPath) => {
             path: fullPath,
             size: stats.size,
             extension: ext,
-            system: detectSystem(ext),
+            system: await detectSystem(ext, fullPath),
             dateAdded: new Date().toISOString()
           });
         }
@@ -149,7 +150,7 @@ ipcMain.handle('scan-roms', async (event, folderPath) => {
     return roms;
   }
 
-  function detectSystem(extension) {
+  async function detectSystem(extension, filePath) {
     const systemMap = {
       '.nes': 'Nintendo Entertainment System',
       '.smc': 'Super Nintendo',
@@ -173,7 +174,74 @@ ipcMain.handle('scan-roms', async (event, folderPath) => {
       '.gcm': 'GameCube',
       '.cso': 'PSP'
     };
-    return systemMap[extension] || 'Unknown';
+
+    // For non-archive files, use extension mapping
+    if (extension !== '.zip' && extension !== '.7z') {
+      return systemMap[extension] || 'Unknown';
+    }
+
+    // For ZIP/7z files, try to detect from the archive contents
+    try {
+      const zip = new AdmZip(filePath);
+      const zipEntries = zip.getEntries();
+
+      // Look for ROM files inside the archive
+      for (const entry of zipEntries) {
+        if (!entry.isDirectory) {
+          const romExt = path.extname(entry.entryName).toLowerCase();
+          if (systemMap[romExt]) {
+            console.log(`Detected ${systemMap[romExt]} from ${entry.entryName} in ${path.basename(filePath)}`);
+            return systemMap[romExt];
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to read archive ${filePath}:`, error.message);
+    }
+
+    // Fallback: try to detect from parent directory name
+    const dirName = path.basename(path.dirname(filePath)).toLowerCase();
+    const dirSystemMap = {
+      'nes': 'Nintendo Entertainment System',
+      'nintendo entertainment system': 'Nintendo Entertainment System',
+      'snes': 'Super Nintendo',
+      'super nintendo': 'Super Nintendo',
+      'gb': 'Game Boy',
+      'game boy': 'Game Boy',
+      'gbc': 'Game Boy Color',
+      'game boy color': 'Game Boy Color',
+      'gba': 'Game Boy Advance',
+      'game boy advance': 'Game Boy Advance',
+      'n64': 'Nintendo 64',
+      'nintendo 64': 'Nintendo 64',
+      'nds': 'Nintendo DS',
+      'nintendo ds': 'Nintendo DS',
+      '3ds': 'Nintendo 3DS',
+      'nintendo 3ds': 'Nintendo 3DS',
+      'genesis': 'Sega Genesis',
+      'sega genesis': 'Sega Genesis',
+      'megadrive': 'Sega Genesis',
+      'mega drive': 'Sega Genesis',
+      'md': 'Sega Genesis',
+      'gg': 'Game Gear',
+      'game gear': 'Game Gear',
+      'sms': 'Sega Master System',
+      'master system': 'Sega Master System',
+      'ps1': 'PlayStation',
+      'psx': 'PlayStation',
+      'playstation': 'PlayStation',
+      'gamecube': 'GameCube',
+      'gc': 'GameCube',
+      'wii': 'Wii',
+      'psp': 'PSP'
+    };
+
+    if (dirSystemMap[dirName]) {
+      console.log(`Detected ${dirSystemMap[dirName]} from directory name for ${path.basename(filePath)}`);
+      return dirSystemMap[dirName];
+    }
+
+    return 'Unknown';
   }
 
   try {
@@ -200,7 +268,7 @@ ipcMain.handle('import-files', async (event, filePaths) => {
     '.rom', '.zip', '.7z'
   ];
 
-  function detectSystem(extension) {
+  async function detectSystem(extension, filePath) {
     const systemMap = {
       '.nes': 'Nintendo Entertainment System',
       '.smc': 'Super Nintendo',
@@ -224,7 +292,74 @@ ipcMain.handle('import-files', async (event, filePaths) => {
       '.gcm': 'GameCube',
       '.cso': 'PSP'
     };
-    return systemMap[extension] || 'Unknown';
+
+    // For non-archive files, use extension mapping
+    if (extension !== '.zip' && extension !== '.7z') {
+      return systemMap[extension] || 'Unknown';
+    }
+
+    // For ZIP/7z files, try to detect from the archive contents
+    try {
+      const zip = new AdmZip(filePath);
+      const zipEntries = zip.getEntries();
+
+      // Look for ROM files inside the archive
+      for (const entry of zipEntries) {
+        if (!entry.isDirectory) {
+          const romExt = path.extname(entry.entryName).toLowerCase();
+          if (systemMap[romExt]) {
+            console.log(`Detected ${systemMap[romExt]} from ${entry.entryName} in ${path.basename(filePath)}`);
+            return systemMap[romExt];
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to read archive ${filePath}:`, error.message);
+    }
+
+    // Fallback: try to detect from parent directory name
+    const dirName = path.basename(path.dirname(filePath)).toLowerCase();
+    const dirSystemMap = {
+      'nes': 'Nintendo Entertainment System',
+      'nintendo entertainment system': 'Nintendo Entertainment System',
+      'snes': 'Super Nintendo',
+      'super nintendo': 'Super Nintendo',
+      'gb': 'Game Boy',
+      'game boy': 'Game Boy',
+      'gbc': 'Game Boy Color',
+      'game boy color': 'Game Boy Color',
+      'gba': 'Game Boy Advance',
+      'game boy advance': 'Game Boy Advance',
+      'n64': 'Nintendo 64',
+      'nintendo 64': 'Nintendo 64',
+      'nds': 'Nintendo DS',
+      'nintendo ds': 'Nintendo DS',
+      '3ds': 'Nintendo 3DS',
+      'nintendo 3ds': 'Nintendo 3DS',
+      'genesis': 'Sega Genesis',
+      'sega genesis': 'Sega Genesis',
+      'megadrive': 'Sega Genesis',
+      'mega drive': 'Sega Genesis',
+      'md': 'Sega Genesis',
+      'gg': 'Game Gear',
+      'game gear': 'Game Gear',
+      'sms': 'Sega Master System',
+      'master system': 'Sega Master System',
+      'ps1': 'PlayStation',
+      'psx': 'PlayStation',
+      'playstation': 'PlayStation',
+      'gamecube': 'GameCube',
+      'gc': 'GameCube',
+      'wii': 'Wii',
+      'psp': 'PSP'
+    };
+
+    if (dirSystemMap[dirName]) {
+      console.log(`Detected ${dirSystemMap[dirName]} from directory name for ${path.basename(filePath)}`);
+      return dirSystemMap[dirName];
+    }
+
+    return 'Unknown';
   }
 
   try {
@@ -243,7 +378,7 @@ ipcMain.handle('import-files', async (event, filePaths) => {
           path: filePath,
           size: stats.size,
           extension: ext,
-          system: detectSystem(ext),
+          system: await detectSystem(ext, filePath),
           dateAdded: new Date().toISOString()
         });
       }
