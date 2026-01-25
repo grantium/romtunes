@@ -261,6 +261,46 @@ button, input, select {
   font-weight: 600;
 }
 
+/* Selection Bar */
+.selection-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  background: #667eea20;
+  border-bottom: 1px solid #667eea;
+}
+
+.selection-info {
+  font-size: 14px;
+  font-weight: 600;
+  color: #667eea;
+}
+
+.selection-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ROM Selection Checkbox */
+.rom-checkbox {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  z-index: 10;
+  accent-color: #667eea;
+}
+
+.rom-row-checkbox {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: #667eea;
+}
+
 /* ROM Container */
 .rom-container {
   flex: 1;
@@ -355,7 +395,7 @@ button, input, select {
 
 .rom-table-header {
   display: grid;
-  grid-template-columns: 32px 60px 2fr 1fr 100px 120px 100px;
+  grid-template-columns: 32px 32px 60px 2fr 1fr 100px 120px 100px;
   gap: 12px;
   padding: 8px 16px;
   background: #1a1a1a;
@@ -406,7 +446,7 @@ button, input, select {
 
 .rom-row {
   display: grid;
-  grid-template-columns: 32px 60px 2fr 1fr 100px 120px 100px;
+  grid-template-columns: 32px 32px 60px 2fr 1fr 100px 120px 100px;
   gap: 12px;
   padding: 8px 16px;
   align-items: center;
@@ -1080,6 +1120,44 @@ input:checked + .toggle-slider:before {
 #sync-progress-text {
   font-size: 13px;
   color: #888;
+  margin-bottom: 12px;
+}
+
+.sync-progress-log {
+  max-height: 200px;
+  overflow-y: auto;
+  background: #0a0a0a;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  padding: 12px;
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.sync-progress-log::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sync-progress-log::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 3px;
+}
+
+.sync-log-entry {
+  margin: 2px 0;
+}
+
+.sync-log-entry.copied {
+  color: #5cb85c;
+}
+
+.sync-log-entry.skipped {
+  color: #888;
+}
+
+.sync-log-entry.error {
+  color: #d9534f;
 }
 
 .sync-options {

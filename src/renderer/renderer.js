@@ -2,6 +2,7 @@
 let currentView = 'grid';
 let currentFilter = { system: 'all', search: '', sortBy: 'name', sortOrder: 'ASC', favorite: false };
 let roms = [];
+let selectedRoms = new Set(); // Track selected ROM IDs
 
 // DOM Elements
 const importBtn = document.getElementById('import-btn');
@@ -44,6 +45,48 @@ function setupEventListeners() {
       renderRoms();
     });
   });
+
+  // Selection bar buttons
+  const selectAllBtn = document.getElementById('select-all-btn');
+  const deselectAllBtn = document.getElementById('deselect-all-btn');
+  const syncSelectedBtn = document.getElementById('sync-selected-btn');
+  const scrapeSelectedBtn = document.getElementById('scrape-selected-btn');
+
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener('click', () => {
+      roms.forEach(rom => selectedRoms.add(rom.id));
+      updateSelectionBar();
+      renderRoms();
+    });
+  }
+
+  if (deselectAllBtn) {
+    deselectAllBtn.addEventListener('click', () => {
+      selectedRoms.clear();
+      updateSelectionBar();
+      renderRoms();
+    });
+  }
+
+  if (syncSelectedBtn) {
+    syncSelectedBtn.addEventListener('click', () => {
+      // Open sync modal with selected ROMs
+      window.openSyncModalWithSelection(Array.from(selectedRoms));
+    });
+  }
+
+  if (scrapeSelectedBtn) {
+    scrapeSelectedBtn.addEventListener('click', async () => {
+      if (selectedRoms.size === 0) {
+        alert('No ROMs selected');
+        return;
+      }
+      const confirmed = confirm(`Scrape artwork for ${selectedRoms.size} selected ROMs?`);
+      if (confirmed) {
+        await window.startBulkScrapeWithSelection(Array.from(selectedRoms));
+      }
+    });
+  }
 
   navItems.forEach(item => {
     item.addEventListener('click', () => {
@@ -209,7 +252,10 @@ function renderGridView() {
       ? `<img src="${artworkPath}" alt="${rom.name}" />`
       : getSystemIcon(rom.system);
 
+    const isSelected = selectedRoms.has(rom.id);
+
     card.innerHTML = `
+      <input type="checkbox" class="rom-checkbox" data-id="${rom.id}" ${isSelected ? 'checked' : ''} />
       <div class="rom-cover">
         ${coverContent}
         <div class="rom-favorite ${rom.favorite ? 'active' : ''}" data-id="${rom.id}">
@@ -223,6 +269,13 @@ function renderGridView() {
       </div>
     `;
 
+    // Add checkbox toggle
+    const checkbox = card.querySelector('.rom-checkbox');
+    checkbox.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleRomSelection(rom.id);
+    });
+
     // Add favorite toggle
     const favoriteBtn = card.querySelector('.rom-favorite');
     favoriteBtn.addEventListener('click', async (e) => {
@@ -232,9 +285,11 @@ function renderGridView() {
 
     // Add click handler to open detail modal
     card.addEventListener('click', (e) => {
+      // Don't open modal if clicking checkbox or favorite
+      if (e.target.classList.contains('rom-checkbox') || e.target.classList.contains('rom-favorite')) {
+        return;
+      }
       console.log('ROM card clicked:', rom.name);
-      console.log('Event target:', e.target);
-      console.log('Current target:', e.currentTarget);
       openRomDetail(rom);
     });
 
@@ -276,6 +331,7 @@ function renderListView() {
   header.className = 'rom-table-header';
 
   const columns = [
+    { key: null, label: '', isCheckbox: true },  // Checkbox column
     { key: null, label: '' },  // Favorite star column (not sortable)
     { key: null, label: '' },  // Artwork column (not sortable)
     { key: 'name', label: 'Name' },
@@ -288,20 +344,35 @@ function renderListView() {
   columns.forEach(column => {
     const cell = document.createElement('div');
     cell.className = 'rom-table-header-cell';
-    cell.textContent = column.label;
 
-    if (column.key) {
-      cell.classList.add('sortable');
-
-      // Add sorted indicator if this is the current sort column
-      if (currentFilter.sortBy === column.key) {
-        cell.classList.add(currentFilter.sortOrder === 'ASC' ? 'sorted-asc' : 'sorted-desc');
-      }
-
-      // Add click handler for sorting
-      cell.addEventListener('click', () => {
-        handleColumnSort(column.key);
+    if (column.isCheckbox) {
+      // Add select-all checkbox
+      const selectAllCheckbox = document.createElement('input');
+      selectAllCheckbox.type = 'checkbox';
+      selectAllCheckbox.className = 'rom-row-checkbox';
+      selectAllCheckbox.id = 'select-all-checkbox';
+      selectAllCheckbox.checked = selectedRoms.size === roms.length && roms.length > 0;
+      selectAllCheckbox.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleSelectAll();
       });
+      cell.appendChild(selectAllCheckbox);
+    } else {
+      cell.textContent = column.label;
+
+      if (column.key) {
+        cell.classList.add('sortable');
+
+        // Add sorted indicator if this is the current sort column
+        if (currentFilter.sortBy === column.key) {
+          cell.classList.add(currentFilter.sortOrder === 'ASC' ? 'sorted-asc' : 'sorted-desc');
+        }
+
+        // Add click handler for sorting
+        cell.addEventListener('click', () => {
+          handleColumnSort(column.key);
+        });
+      }
     }
 
     header.appendChild(cell);
@@ -328,7 +399,15 @@ function renderListView() {
       ? new Date(rom.dateAdded).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
       : '—';
 
+    const isSelected = selectedRoms.has(rom.id);
+    if (isSelected) {
+      row.classList.add('selected');
+    }
+
     row.innerHTML = `
+      <div class="rom-row-checkbox-cell">
+        <input type="checkbox" class="rom-row-checkbox" data-id="${rom.id}" ${isSelected ? 'checked' : ''} />
+      </div>
       <div class="rom-row-favorite ${rom.favorite ? 'active' : ''}" data-id="${rom.id}">
         ${rom.favorite ? '⭐' : '☆'}
       </div>
@@ -342,6 +421,13 @@ function renderListView() {
       <div class="rom-row-date">${dateAdded}</div>
     `;
 
+    // Add checkbox toggle
+    const checkbox = row.querySelector('.rom-row-checkbox');
+    checkbox.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleRomSelection(rom.id);
+    });
+
     // Add favorite toggle
     const favoriteBtn = row.querySelector('.rom-row-favorite');
     favoriteBtn.addEventListener('click', async (e) => {
@@ -350,7 +436,11 @@ function renderListView() {
     });
 
     // Add click handler to open detail modal
-    row.addEventListener('click', () => {
+    row.addEventListener('click', (e) => {
+      // Don't open modal if clicking checkbox or favorite
+      if (e.target.classList.contains('rom-row-checkbox') || e.target.classList.contains('rom-row-favorite')) {
+        return;
+      }
       console.log('ROM row clicked:', rom.name);
       openRomDetail(rom);
     });
@@ -385,6 +475,44 @@ async function toggleFavorite(id, favorite) {
   await window.electronAPI.updateRom(id, { favorite: favorite ? 1 : 0 });
   await loadRoms();
   await updateStats();
+}
+
+// Toggle ROM Selection
+function toggleRomSelection(id) {
+  if (selectedRoms.has(id)) {
+    selectedRoms.delete(id);
+  } else {
+    selectedRoms.add(id);
+  }
+  updateSelectionBar();
+  renderRoms(); // Re-render to update checkboxes
+}
+
+// Toggle Select All
+function toggleSelectAll() {
+  if (selectedRoms.size === roms.length) {
+    // Deselect all
+    selectedRoms.clear();
+  } else {
+    // Select all
+    selectedRoms.clear();
+    roms.forEach(rom => selectedRoms.add(rom.id));
+  }
+  updateSelectionBar();
+  renderRoms(); // Re-render to update checkboxes
+}
+
+// Update Selection Bar
+function updateSelectionBar() {
+  const selectionBar = document.getElementById('selection-bar');
+  const selectionCount = document.getElementById('selection-count');
+
+  if (selectedRoms.size > 0) {
+    selectionBar.style.display = 'flex';
+    selectionCount.textContent = selectedRoms.size;
+  } else {
+    selectionBar.style.display = 'none';
+  }
 }
 
 // Get System Icon
