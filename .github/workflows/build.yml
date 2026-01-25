@@ -35,7 +35,10 @@ jobs:
 
       - name: Build for macOS
         if: matrix.os == 'macos-latest'
-        run: npm run build:mac
+        run: |
+          npm run build:mac
+          # Ad-hoc code signing (makes it easier to open on user's Mac)
+          codesign --force --deep --sign - dist/mac*/RomTunes.app || true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
