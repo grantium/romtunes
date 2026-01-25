@@ -494,10 +494,10 @@ ipcMain.handle('get-artwork-path', async (event, romId, artworkType) => {
 });
 
 // Sync Handlers
-ipcMain.handle('sync-roms', async (event, profileId, romIds = null) => {
+ipcMain.handle('sync-roms', async (event, profileId, romIds = null, options = {}) => {
   let lastProgress = null;
 
-  const result = await syncManager.syncRoms(profileId, romIds, (progress) => {
+  const result = await syncManager.syncRoms(profileId, romIds, options, (progress) => {
     lastProgress = progress;
     // Send progress to renderer
     mainWindow.webContents.send('sync-progress', progress);
@@ -516,6 +516,14 @@ ipcMain.handle('verify-sync', async (event, profileId) => {
 
 ipcMain.handle('get-sync-status', async () => {
   return syncManager.getSyncStatus();
+});
+
+ipcMain.handle('scan-device-for-roms', async (event, profileId) => {
+  return syncManager.scanDeviceForRoms(profileId);
+});
+
+ipcMain.handle('import-from-device', async (event, profileId, romPaths) => {
+  return syncManager.importFromDevice(profileId, romPaths);
 });
 
 // Scraper Handlers

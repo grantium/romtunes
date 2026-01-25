@@ -344,9 +344,26 @@
 
         <div class="sync-options">
           <label class="setting-label">
+            <input type="checkbox" id="sync-saves-check" checked />
+            Sync Save Files (Two-Way)
+          </label>
+          <p style="font-size: 11px; color: #666; margin-left: 24px; margin-top: 4px;">
+            Automatically sync save files between your library and device. Keeps the most recent version.
+          </p>
+
+          <label class="setting-label" style="margin-top: 8px;">
             <input type="checkbox" id="sync-artwork-check" />
             Sync Artwork
           </label>
+        </div>
+
+        <div class="sync-actions" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #2a2a2a;">
+          <button class="btn-secondary" id="import-from-device-btn">
+            📥 Import from Device
+          </button>
+          <p style="font-size: 11px; color: #666; margin-top: 8px;">
+            Scan device for ROMs not in your library and import them.
+          </p>
         </div>
 
         <div id="sync-status" class="sync-status"></div>
@@ -362,6 +379,42 @@
       <div class="modal-footer">
         <button class="btn-secondary" id="sync-cancel">Cancel</button>
         <button class="btn-primary" id="sync-start">Start Sync</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import from Device Modal -->
+  <div class="modal" id="import-device-modal">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2>Import ROMs from Device</h2>
+        <button class="modal-close" id="import-device-close">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div id="import-device-status" class="import-status">
+          <p>Scanning device for ROMs...</p>
+        </div>
+
+        <div id="import-device-results" style="display: none;">
+          <div class="import-summary" id="import-summary"></div>
+
+          <div class="import-roms-list" style="margin-top: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <h3 style="font-size: 14px; margin: 0;">ROMs Found on Device</h3>
+              <div>
+                <button class="btn-small btn-secondary" id="import-select-all">Select All</button>
+                <button class="btn-small btn-secondary" id="import-deselect-all">Deselect All</button>
+              </div>
+            </div>
+            <div id="import-roms-container" class="import-roms-scroll"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" id="import-device-cancel">Cancel</button>
+        <button class="btn-primary" id="import-device-start" disabled>Import Selected</button>
       </div>
     </div>
   </div>

@@ -26,10 +26,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getArtworkPath: (romId, artworkType) => ipcRenderer.invoke('get-artwork-path', romId, artworkType),
 
   // Sync Operations
-  syncRoms: (profileId, romIds) => ipcRenderer.invoke('sync-roms', profileId, romIds),
+  syncRoms: (profileId, romIds, options) => ipcRenderer.invoke('sync-roms', profileId, romIds, options),
   syncArtwork: (profileId, romIds, artworkTypes) => ipcRenderer.invoke('sync-artwork', profileId, romIds, artworkTypes),
   verifySync: (profileId) => ipcRenderer.invoke('verify-sync', profileId),
   getSyncStatus: () => ipcRenderer.invoke('get-sync-status'),
+  scanDeviceForRoms: (profileId) => ipcRenderer.invoke('scan-device-for-roms', profileId),
+  importFromDevice: (profileId, romPaths) => ipcRenderer.invoke('import-from-device', profileId, romPaths),
 
   // Scraper Operations
   scrapeRom: (romId, artworkTypes) => ipcRenderer.invoke('scrape-rom', romId, artworkTypes),

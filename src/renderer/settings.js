@@ -24,6 +24,22 @@ const syncProgressBar = document.getElementById('sync-progress-bar');
 const syncProgressText = document.getElementById('sync-progress-text');
 const syncStatus = document.getElementById('sync-status');
 
+// Import from Device Modal
+const importDeviceBtn = document.getElementById('import-from-device-btn');
+const importDeviceModal = document.getElementById('import-device-modal');
+const importDeviceClose = document.getElementById('import-device-close');
+const importDeviceCancel = document.getElementById('import-device-cancel');
+const importDeviceStart = document.getElementById('import-device-start');
+const importDeviceStatus = document.getElementById('import-device-status');
+const importDeviceResults = document.getElementById('import-device-results');
+const importSummary = document.getElementById('import-summary');
+const importRomsContainer = document.getElementById('import-roms-container');
+const importSelectAll = document.getElementById('import-select-all');
+const importDeselectAll = document.getElementById('import-deselect-all');
+
+let foundRoms = [];
+let selectedImportRoms = new Set();
+
 // Tab Management
 const tabBtns = document.querySelectorAll('.tab-btn');
 const tabContents = document.querySelectorAll('.tab-content');
@@ -45,6 +61,34 @@ function setupSettingsListeners() {
   syncClose.addEventListener('click', closeSyncModal);
   syncCancel.addEventListener('click', closeSyncModal);
   syncStart.addEventListener('click', startSync);
+
+  // Import from device
+  if (importDeviceBtn) {
+    importDeviceBtn.addEventListener('click', openImportDeviceModal);
+  }
+  if (importDeviceClose) {
+    importDeviceClose.addEventListener('click', closeImportDeviceModal);
+  }
+  if (importDeviceCancel) {
+    importDeviceCancel.addEventListener('click', closeImportDeviceModal);
+  }
+  if (importDeviceStart) {
+    importDeviceStart.addEventListener('click', startImport);
+  }
+  if (importSelectAll) {
+    importSelectAll.addEventListener('click', () => {
+      foundRoms.forEach(rom => selectedImportRoms.add(rom.path));
+      renderImportRoms();
+      updateImportButton();
+    });
+  }
+  if (importDeselectAll) {
+    importDeselectAll.addEventListener('click', () => {
+      selectedImportRoms.clear();
+      renderImportRoms();
+      updateImportButton();
+    });
+  }
 
   // Scrape artwork from toolbar
   if (scrapeArtworkBtn) {
@@ -453,6 +497,7 @@ async function startSync() {
   }
 
   const syncArtwork = document.getElementById('sync-artwork-check').checked;
+  const syncSaves = document.getElementById('sync-saves-check').checked;
 
   // Verify profile first
   const verification = await window.electronAPI.verifySync(profileId);
@@ -474,8 +519,9 @@ async function startSync() {
   }
 
   try {
-    // Sync ROMs (pass selected ROM IDs if available)
-    const result = await window.electronAPI.syncRoms(profileId, syncRomIds);
+    // Sync ROMs (pass selected ROM IDs and options)
+    const options = { syncSaves };
+    const result = await window.electronAPI.syncRoms(profileId, syncRomIds, options);
 
     if (result.errors.length > 0) {
       console.error('Sync errors:', result.errors);
@@ -489,11 +535,21 @@ async function startSync() {
 
     // Success
     syncProgressBar.style.width = '100%';
-    syncProgressText.textContent = `Sync complete! ${result.synced} ROMs synced, ${result.skipped} skipped`;
+    let statusText = `Sync complete! ${result.synced} ROMs synced, ${result.skipped} skipped`;
+
+    if (result.saves && (result.saves.copied > 0 || result.saves.skipped > 0)) {
+      statusText += `\nSave files: ${result.saves.copied} synced, ${result.saves.skipped} skipped`;
+    }
 
     if (result.errors.length > 0) {
-      syncProgressText.textContent += ` (${result.errors.length} errors)`;
+      statusText += ` (${result.errors.length} ROM errors)`;
     }
+
+    if (result.saves && result.saves.errors.length > 0) {
+      statusText += ` (${result.saves.errors.length} save errors)`;
+    }
+
+    syncProgressText.textContent = statusText;
 
     // Show helpful message if provided
     if (result.message) {
@@ -773,12 +829,154 @@ async function updateArtworkSetting(profileId, setting, value) {
   console.log(`Updated ${setting} for profile ${profileId}:`, value);
 }
 
+// Import from Device Modal
+async function openImportDeviceModal() {
+  const profileId = syncProfileSelect.value;
+
+  if (!profileId) {
+    alert('Please select a device profile first');
+    return;
+  }
+
+  // Reset state
+  foundRoms = [];
+  selectedImportRoms.clear();
+
+  // Show modal
+  importDeviceModal.classList.add('active');
+  importDeviceStatus.style.display = 'block';
+  importDeviceResults.style.display = 'none';
+  importDeviceStart.disabled = true;
+
+  // Scan device
+  try {
+    const result = await window.electronAPI.scanDeviceForRoms(profileId);
+
+    foundRoms = result.roms;
+
+    if (foundRoms.length === 0) {
+      importDeviceStatus.innerHTML = `
+        <p style="color: #888;">No new ROMs found on device.</p>
+        <p style="font-size: 12px; color: #666; margin-top: 8px;">
+          All ROMs on this device are already in your library.
+        </p>
+      `;
+    } else {
+      // Show results
+      importDeviceStatus.style.display = 'none';
+      importDeviceResults.style.display = 'block';
+
+      importSummary.innerHTML = `
+        Found <strong>${foundRoms.length}</strong> ROM${foundRoms.length > 1 ? 's' : ''} on device that ${foundRoms.length > 1 ? 'are' : 'is'} not in your library.
+      `;
+
+      // Auto-select all
+      foundRoms.forEach(rom => selectedImportRoms.add(rom.path));
+
+      renderImportRoms();
+      updateImportButton();
+    }
+  } catch (error) {
+    importDeviceStatus.innerHTML = `
+      <p style="color: #d9534f;">Error scanning device: ${error.message}</p>
+    `;
+  }
+}
+
+function closeImportDeviceModal() {
+  importDeviceModal.classList.remove('active');
+  foundRoms = [];
+  selectedImportRoms.clear();
+}
+
+function renderImportRoms() {
+  importRomsContainer.innerHTML = foundRoms.map(rom => {
+    const isSelected = selectedImportRoms.has(rom.path);
+    const sizeStr = formatBytes(rom.size);
+
+    return `
+      <div class="import-rom-item">
+        <input type="checkbox"
+               ${isSelected ? 'checked' : ''}
+               onchange="toggleImportRom('${rom.path}')" />
+        <div class="import-rom-info">
+          <div class="import-rom-name">${rom.name}</div>
+          <div class="import-rom-meta">${rom.system} • ${rom.extension}</div>
+        </div>
+        <div class="import-rom-size">${sizeStr}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleImportRom(romPath) {
+  if (selectedImportRoms.has(romPath)) {
+    selectedImportRoms.delete(romPath);
+  } else {
+    selectedImportRoms.add(romPath);
+  }
+  updateImportButton();
+}
+
+function updateImportButton() {
+  importDeviceStart.disabled = selectedImportRoms.size === 0;
+  importDeviceStart.textContent = `Import ${selectedImportRoms.size} ROM${selectedImportRoms.size !== 1 ? 's' : ''}`;
+}
+
+async function startImport() {
+  const profileId = syncProfileSelect.value;
+  const romPaths = Array.from(selectedImportRoms);
+
+  if (romPaths.length === 0) {
+    return;
+  }
+
+  // Disable button
+  importDeviceStart.disabled = true;
+  importDeviceStart.textContent = 'Importing...';
+
+  try {
+    const result = await window.electronAPI.importFromDevice(profileId, romPaths);
+
+    alert(
+      `Import complete!\n\n` +
+      `Imported: ${result.imported}\n` +
+      `Skipped: ${result.skipped}\n` +
+      (result.errors.length > 0 ? `Errors: ${result.errors.length}` : '')
+    );
+
+    // Close modal and refresh library
+    closeImportDeviceModal();
+
+    // Refresh ROM list
+    if (window.loadRoms) {
+      await window.loadRoms();
+    }
+    if (window.updateStats) {
+      await window.updateStats();
+    }
+  } catch (error) {
+    alert(`Import failed: ${error.message}`);
+    importDeviceStart.disabled = false;
+    updateImportButton();
+  }
+}
+
+function formatBytes(bytes) {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
 // Make functions globally accessible
 window.toggleProfile = toggleProfile;
 window.selectBasePath = selectBasePath;
 window.removeMapping = removeMapping;
 window.showAddMappingDialog = showAddMappingDialog;
 window.updateArtworkSetting = updateArtworkSetting;
+window.toggleImportRom = toggleImportRom;
 
 // Initialize on load
 initSettings();

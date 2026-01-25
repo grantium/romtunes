@@ -34,9 +34,24 @@ class RomDatabase {
         lastSynced TEXT
       );
 
+      CREATE TABLE IF NOT EXISTS saves (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        romId INTEGER NOT NULL,
+        saveType TEXT NOT NULL,
+        filename TEXT NOT NULL,
+        localPath TEXT,
+        devicePath TEXT,
+        size INTEGER,
+        lastModified TEXT,
+        lastSynced TEXT,
+        syncDirection TEXT,
+        FOREIGN KEY (romId) REFERENCES roms(id) ON DELETE CASCADE
+      );
+
       CREATE INDEX IF NOT EXISTS idx_system ON roms(system);
       CREATE INDEX IF NOT EXISTS idx_name ON roms(name);
       CREATE INDEX IF NOT EXISTS idx_favorite ON roms(favorite);
+      CREATE INDEX IF NOT EXISTS idx_saves_romId ON saves(romId);
     `);
 
     // Migrate existing database if needed
@@ -180,6 +195,70 @@ class RomDatabase {
       totalSize: totalSize.size || 0,
       systemCount: systemCount.count
     };
+  }
+
+  // Save game management
+  addSave(save) {
+    const stmt = this.db.prepare(`
+      INSERT OR REPLACE INTO saves
+      (romId, saveType, filename, localPath, devicePath, size, lastModified, lastSynced, syncDirection)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    return stmt.run(
+      save.romId,
+      save.saveType,
+      save.filename,
+      save.localPath || null,
+      save.devicePath || null,
+      save.size || 0,
+      save.lastModified || new Date().toISOString(),
+      save.lastSynced || null,
+      save.syncDirection || null
+    );
+  }
+
+  getSaves(romId) {
+    const stmt = this.db.prepare('SELECT * FROM saves WHERE romId = ?');
+    return stmt.all(romId);
+  }
+
+  getAllSaves() {
+    const stmt = this.db.prepare('SELECT * FROM saves');
+    return stmt.all();
+  }
+
+  updateSave(id, updates) {
+    const allowedFields = [
+      'localPath', 'devicePath', 'size', 'lastModified', 'lastSynced', 'syncDirection'
+    ];
+
+    const fields = [];
+    const values = [];
+
+    for (const [key, value] of Object.entries(updates)) {
+      if (allowedFields.includes(key)) {
+        fields.push(`${key} = ?`);
+        values.push(value);
+      }
+    }
+
+    if (fields.length === 0) {
+      return;
+    }
+
+    values.push(id);
+
+    const stmt = this.db.prepare(`
+      UPDATE saves SET ${fields.join(', ')} WHERE id = ?
+    `);
+
+    return stmt.run(...values);
+  }
+
+  deleteSave(id) {
+    const stmt = this.db.prepare('DELETE FROM saves WHERE id = ?');
+    return stmt.run(id);
   }
 
   close() {
