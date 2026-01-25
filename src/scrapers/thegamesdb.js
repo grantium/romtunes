@@ -7,14 +7,14 @@ class TheGamesDB {
   constructor(config) {
     this.config = config;
     this.baseUrl = 'https://api.thegamesdb.net/v1';
-
-    // Get API key from config, or use default demo key
-    // Users should register for free at https://forums.thegamesdb.net/viewforum.php?f=10
-    const credentials = this.config.get('scraper.thegamesdb') || {};
-    this.apiKey = credentials.apiKey || '';
-
     this.lastRequestTime = 0;
     this.minRequestInterval = 1000; // 1 second between requests (generous limit)
+  }
+
+  // Get API key fresh from config each time (allows updating without restart)
+  getApiKey() {
+    const credentials = this.config.get('scraper.thegamesdb') || {};
+    return credentials.apiKey || '';
   }
 
   async waitForRateLimit() {
@@ -31,7 +31,7 @@ class TheGamesDB {
 
   buildUrl(endpoint, params = {}) {
     const queryParams = {
-      apikey: this.apiKey,
+      apikey: this.getApiKey(),
       ...params
     };
 
@@ -250,10 +250,11 @@ class TheGamesDB {
 
   async scrapeRom(rom, artworkTypes = ['boxart', 'screenshot']) {
     try {
-      if (!this.apiKey) {
+      const apiKey = this.getApiKey();
+      if (!apiKey) {
         return {
           success: false,
-          error: 'TheGamesDB API key not configured. Please add your API key in Settings → Scraper tab.'
+          error: 'TheGamesDB API key is not configured. Please add your API key in Settings → Scraper tab.'
         };
       }
 
