@@ -577,6 +577,55 @@
     </div>
   </div>
 
+  <!-- Add System Mapping Modal -->
+  <div class="modal" id="add-mapping-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Add System Mapping</h2>
+        <button class="modal-close" id="add-mapping-close">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="setting-group">
+          <label class="setting-label">System Name</label>
+          <select id="mapping-system-select" class="setting-select">
+            <option value="">Select a system...</option>
+            <option value="Nintendo Entertainment System">Nintendo Entertainment System (NES)</option>
+            <option value="Super Nintendo">Super Nintendo (SNES)</option>
+            <option value="Game Boy">Game Boy (GB)</option>
+            <option value="Game Boy Color">Game Boy Color (GBC)</option>
+            <option value="Game Boy Advance">Game Boy Advance (GBA)</option>
+            <option value="Nintendo 64">Nintendo 64 (N64)</option>
+            <option value="Nintendo DS">Nintendo DS</option>
+            <option value="Nintendo 3DS">Nintendo 3DS</option>
+            <option value="Sega Genesis">Sega Genesis</option>
+            <option value="Sega Master System">Sega Master System</option>
+            <option value="Game Gear">Game Gear</option>
+            <option value="PlayStation">PlayStation (PS1)</option>
+            <option value="PSP">PlayStation Portable (PSP)</option>
+            <option value="GameCube">GameCube</option>
+          </select>
+          <p style="font-size: 12px; color: #888; margin-top: 8px;">
+            Select the ROM system you want to map to a device folder
+          </p>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">Device Folder Path</label>
+          <input type="text" id="mapping-folder-input" class="setting-input" placeholder="e.g., roms/NES or FC" />
+          <p style="font-size: 12px; color: #888; margin-top: 8px;">
+            Path relative to device base path (e.g., "roms/NES", "FC", "SNES")
+          </p>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" id="add-mapping-cancel">Cancel</button>
+        <button class="btn-primary" id="add-mapping-save">Add Mapping</button>
+      </div>
+    </div>
+  </div>
+
   <script src="renderer.js"></script>
   <script src="settings.js"></script>
 </body>

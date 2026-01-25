@@ -781,19 +781,71 @@ async function removeMapping(profileId, system) {
   }
 }
 
-async function showAddMappingDialog(profileId) {
-  const system = prompt('Enter system name (e.g., "Nintendo Entertainment System"):');
-  if (!system) return;
+// Add System Mapping Modal
+let currentMappingProfileId = null;
+const addMappingModal = document.getElementById('add-mapping-modal');
+const addMappingClose = document.getElementById('add-mapping-close');
+const addMappingCancel = document.getElementById('add-mapping-cancel');
+const addMappingSave = document.getElementById('add-mapping-save');
+const mappingSystemSelect = document.getElementById('mapping-system-select');
+const mappingFolderInput = document.getElementById('mapping-folder-input');
 
-  const folder = prompt('Enter folder path (e.g., "roms/NES" or "FC"):');
-  if (!folder) return;
+if (addMappingClose) {
+  addMappingClose.addEventListener('click', closeAddMappingDialog);
+}
+if (addMappingCancel) {
+  addMappingCancel.addEventListener('click', closeAddMappingDialog);
+}
+if (addMappingSave) {
+  addMappingSave.addEventListener('click', saveNewMapping);
+}
 
-  const profile = syncProfiles.find(p => p.id === profileId);
+function showAddMappingDialog(profileId) {
+  console.log('[Mapping] Opening add mapping dialog for profile:', profileId);
+  currentMappingProfileId = profileId;
+
+  // Reset form
+  mappingSystemSelect.value = '';
+  mappingFolderInput.value = '';
+
+  // Show modal
+  addMappingModal.classList.add('active');
+}
+
+function closeAddMappingDialog() {
+  addMappingModal.classList.remove('active');
+  currentMappingProfileId = null;
+}
+
+async function saveNewMapping() {
+  const system = mappingSystemSelect.value;
+  const folder = mappingFolderInput.value.trim();
+
+  if (!system) {
+    alert('Please select a system');
+    return;
+  }
+
+  if (!folder) {
+    alert('Please enter a folder path');
+    return;
+  }
+
+  const profile = syncProfiles.find(p => p.id === currentMappingProfileId);
   if (profile) {
+    console.log('[Mapping] Adding mapping:', system, '->', folder);
+
+    if (!profile.systemMappings) {
+      profile.systemMappings = {};
+    }
+
     profile.systemMappings[system] = folder;
-    await window.electronAPI.updateSyncProfile(profileId, {
+
+    await window.electronAPI.updateSyncProfile(currentMappingProfileId, {
       systemMappings: profile.systemMappings
     });
+
+    closeAddMappingDialog();
     renderProfiles();
   }
 }
