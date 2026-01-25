@@ -343,78 +343,157 @@ button, input, select {
   margin-top: 4px;
 }
 
-/* List View */
+/* List View - iTunes-style Table */
 .rom-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  background: #0a0a0a;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.rom-table-header {
+  display: grid;
+  grid-template-columns: 32px 60px 2fr 1fr 100px 120px 100px;
+  gap: 12px;
+  padding: 8px 16px;
+  background: #1a1a1a;
+  border-bottom: 1px solid #2a2a2a;
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  align-items: center;
+}
+
+.rom-table-header-cell {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.2s;
+}
+
+.rom-table-header-cell:hover {
+  color: #fff;
+}
+
+.rom-table-header-cell.sortable::after {
+  content: '⇅';
+  opacity: 0.3;
+  font-size: 10px;
+}
+
+.rom-table-header-cell.sorted-asc::after {
+  content: '↑';
+  opacity: 1;
+  color: #667eea;
+}
+
+.rom-table-header-cell.sorted-desc::after {
+  content: '↓';
+  opacity: 1;
+  color: #667eea;
+}
+
+.rom-table-body {
+  overflow-y: auto;
+  max-height: calc(100vh - 300px);
 }
 
 .rom-row {
-  background: #1a1a1a;
-  border: 1px solid #2a2a2a;
-  padding: 16px;
   display: grid;
-  grid-template-columns: 40px 1fr 200px 120px 60px;
-  gap: 16px;
+  grid-template-columns: 32px 60px 2fr 1fr 100px 120px 100px;
+  gap: 12px;
+  padding: 8px 16px;
   align-items: center;
   cursor: pointer;
   transition: background 0.2s;
-  border-radius: 6px;
+  border-bottom: 1px solid #1a1a1a;
 }
 
 .rom-row:hover {
-  background: #252525;
-  border-color: #667eea;
+  background: #1a1a1a;
 }
 
-.rom-row-icon {
-  font-size: 24px;
-  text-align: center;
-}
-
-.rom-row-info {
-  min-width: 0;
-}
-
-.rom-row-name {
-  font-size: 14px;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.rom-row-path {
-  font-size: 11px;
-  color: #666;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-top: 2px;
-}
-
-.rom-row-system {
-  font-size: 13px;
-  color: #888;
-}
-
-.rom-row-size {
-  font-size: 13px;
-  color: #888;
+.rom-row.selected {
+  background: #667eea20;
 }
 
 .rom-row-favorite {
-  font-size: 20px;
+  font-size: 16px;
   cursor: pointer;
   opacity: 0.4;
-  transition: opacity 0.2s;
+  transition: opacity 0.2s, transform 0.1s;
   text-align: center;
+  width: 24px;
 }
 
-.rom-row-favorite:hover,
+.rom-row-favorite:hover {
+  opacity: 0.7;
+  transform: scale(1.2);
+}
+
 .rom-row-favorite.active {
   opacity: 1;
+}
+
+.rom-row-artwork {
+  width: 48px;
+  height: 48px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #667eea20 0%, #764ba220 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  border: 1px solid #2a2a2a;
+}
+
+.rom-row-artwork img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.rom-row-name {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #fff;
+}
+
+.rom-row-system {
+  font-size: 12px;
+  color: #888;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rom-row-size {
+  font-size: 12px;
+  color: #888;
+  font-variant-numeric: tabular-nums;
+}
+
+.rom-row-extension {
+  font-size: 11px;
+  color: #666;
+  font-family: 'Monaco', 'Menlo', monospace;
+  text-transform: uppercase;
+}
+
+.rom-row-date {
+  font-size: 11px;
+  color: #888;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Empty State */
