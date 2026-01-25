@@ -105,6 +105,23 @@
         </div>
       </div>
 
+      <!-- Selection Bar (shown when ROMs are selected) -->
+      <div class="selection-bar" id="selection-bar" style="display: none;">
+        <div class="selection-info">
+          <span id="selection-count">0</span> ROMs selected
+        </div>
+        <div class="selection-actions">
+          <button class="btn-small btn-secondary" id="select-all-btn">Select All</button>
+          <button class="btn-small btn-secondary" id="deselect-all-btn">Deselect All</button>
+          <button class="btn-small btn-primary" id="sync-selected-btn">
+            🔄 Sync Selected
+          </button>
+          <button class="btn-small btn-scrape" id="scrape-selected-btn">
+            🎨 Scrape Selected
+          </button>
+        </div>
+      </div>
+
       <!-- ROM Grid -->
       <div class="rom-container" id="rom-container">
         <div class="empty-state" id="empty-state">
@@ -338,6 +355,7 @@
             <div class="progress-fill" id="sync-progress-bar"></div>
           </div>
           <p id="sync-progress-text">Preparing...</p>
+          <div id="sync-progress-log" class="sync-progress-log"></div>
         </div>
       </div>
 

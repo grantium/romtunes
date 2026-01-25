@@ -2,6 +2,7 @@
 let currentSettings = {};
 let syncProfiles = [];
 let isScraping = false;
+let syncRomIds = null; // Track ROM IDs to sync (null = all ROMs)
 
 // DOM Elements
 const settingsBtn = document.getElementById('settings-btn');
@@ -416,8 +417,18 @@ async function saveSettings() {
   alert('Settings saved successfully!');
 }
 
-function openSyncModal() {
+function openSyncModal(romIds = null) {
+  syncRomIds = romIds;
   updateSyncStatusDisplay();
+
+  // Update modal text to show if syncing selection
+  const modalHeader = syncModal.querySelector('.modal-header h2');
+  if (romIds && romIds.length > 0) {
+    modalHeader.textContent = `Sync ${romIds.length} Selected ROM${romIds.length > 1 ? 's' : ''} to Device`;
+  } else {
+    modalHeader.textContent = 'Sync ROMs to Device';
+  }
+
   syncModal.classList.add('active');
 }
 
@@ -425,7 +436,13 @@ function closeSyncModal() {
   syncModal.classList.remove('active');
   syncProgressContainer.style.display = 'none';
   syncProgressBar.style.width = '0%';
+  syncRomIds = null; // Reset
 }
+
+// Expose function to open sync modal with selection (called from renderer.js)
+window.openSyncModalWithSelection = function(romIds) {
+  openSyncModal(romIds);
+};
 
 async function startSync() {
   const profileId = syncProfileSelect.value;
@@ -450,9 +467,15 @@ async function startSync() {
   syncCancel.disabled = true;
   syncProgressContainer.style.display = 'block';
 
+  // Clear progress log
+  const progressLog = document.getElementById('sync-progress-log');
+  if (progressLog) {
+    progressLog.innerHTML = '';
+  }
+
   try {
-    // Sync ROMs
-    const result = await window.electronAPI.syncRoms(profileId);
+    // Sync ROMs (pass selected ROM IDs if available)
+    const result = await window.electronAPI.syncRoms(profileId, syncRomIds);
 
     if (result.errors.length > 0) {
       console.error('Sync errors:', result.errors);
@@ -461,7 +484,7 @@ async function startSync() {
     // Sync artwork if requested
     if (syncArtwork) {
       syncProgressText.textContent = 'Syncing artwork...';
-      await window.electronAPI.syncArtwork(profileId, null, ['boxart', 'screenshot']);
+      await window.electronAPI.syncArtwork(profileId, syncRomIds, ['boxart', 'screenshot']);
     }
 
     // Success
@@ -496,7 +519,26 @@ async function startSync() {
 function updateSyncProgress(progress) {
   const percent = (progress.current / progress.total) * 100;
   syncProgressBar.style.width = `${percent}%`;
-  syncProgressText.textContent = `Syncing ${progress.rom} (${progress.current}/${progress.total})`;
+  syncProgressText.textContent = `Syncing... (${progress.current}/${progress.total})`;
+
+  // Add to progress log
+  const progressLog = document.getElementById('sync-progress-log');
+  if (progressLog) {
+    const entry = document.createElement('div');
+    entry.className = `sync-log-entry ${progress.status}`;
+
+    const statusIcon = {
+      'copied': '✓',
+      'skipped': '⊘',
+      'error': '✗'
+    }[progress.status] || '•';
+
+    entry.textContent = `${statusIcon} ${progress.rom} → ${progress.targetPath}`;
+
+    progressLog.appendChild(entry);
+    // Auto-scroll to bottom
+    progressLog.scrollTop = progressLog.scrollHeight;
+  }
 }
 
 // Scraper Functions
@@ -552,6 +594,47 @@ async function startBulkScrape() {
 
   try {
     const result = await window.electronAPI.bulkScrape(null, artworkTypes);
+
+    alert(
+      `Bulk scrape complete!\n\n` +
+      `Scraped: ${result.scraped}\n` +
+      `Skipped: ${result.skipped}\n` +
+      `Failed: ${result.failed}`
+    );
+
+    await window.loadRoms();
+    await window.updateStats();
+  } catch (error) {
+    alert(`Bulk scrape failed: ${error.message}`);
+  } finally {
+    isScraping = false;
+    bulkScrapeBtn.disabled = false;
+    bulkScrapeBtn.textContent = 'Scrape All ROMs';
+  }
+}
+
+// Expose function to scrape selected ROMs (called from renderer.js)
+window.startBulkScrapeWithSelection = async function(romIds) {
+  if (isScraping) {
+    alert('Scraping already in progress');
+    return;
+  }
+
+  isScraping = true;
+  const scrapeSelectedBtn = document.getElementById('scrape-selected-btn');
+  if (scrapeSelectedBtn) {
+    scrapeSelectedBtn.disabled = true;
+    scrapeSelectedBtn.textContent = 'Scraping...';
+  }
+
+  const artworkTypes = [];
+  if (document.getElementById('scraper-boxart').checked) artworkTypes.push('boxart');
+  if (document.getElementById('scraper-screenshot').checked) artworkTypes.push('screenshot');
+  if (document.getElementById('scraper-banner').checked) artworkTypes.push('banner');
+  if (document.getElementById('scraper-fanart').checked) artworkTypes.push('fanart');
+
+  try {
+    const result = await window.electronAPI.bulkScrape(romIds, artworkTypes);
 
     alert(
       `Bulk scrape complete!\n\n` +

@@ -82,6 +82,7 @@ class SyncManager {
           // Target doesn't exist, need to copy
         }
 
+        let status = 'skipped';
         if (shouldCopy) {
           // Copy the ROM file
           await fs.copyFile(rom.path, targetPath);
@@ -93,8 +94,10 @@ class SyncManager {
           });
 
           results.synced++;
+          status = 'copied';
         } else {
           results.skipped++;
+          status = 'skipped';
         }
 
         // Report progress
@@ -103,7 +106,9 @@ class SyncManager {
             current: i + 1,
             total: roms.length,
             rom: rom.name,
-            system: rom.system
+            system: rom.system,
+            status,
+            targetPath: targetPath.replace(profile.basePath, '')
           });
         }
       } catch (error) {
