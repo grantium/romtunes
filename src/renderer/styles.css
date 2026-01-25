@@ -1511,3 +1511,50 @@ input:checked + .toggle-slider:before {
   background: rgba(239, 68, 68, 0.2);
   color: #ef4444;
 }
+
+/* Manage Folders */
+.folders-list {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.folder-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  transition: background 0.2s;
+}
+
+.folder-item:hover {
+  background: #252525;
+}
+
+.folder-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.folder-path {
+  font-size: 13px;
+  color: #fff;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 6px;
+}
+
+.folder-meta {
+  font-size: 11px;
+  color: #888;
+}
+
+.folder-actions {
+  display: flex;
+  gap: 8px;
+}

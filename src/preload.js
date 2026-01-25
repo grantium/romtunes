@@ -9,8 +9,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getRoms: (filters) => ipcRenderer.invoke('get-roms', filters),
   getSystems: () => ipcRenderer.invoke('get-systems'),
   deleteRom: (id) => ipcRenderer.invoke('delete-rom', id),
+  deleteRomsByFolder: (folderPath) => ipcRenderer.invoke('delete-roms-by-folder', folderPath),
+  getIndexedFolders: () => ipcRenderer.invoke('get-indexed-folders'),
   updateRom: (id, updates) => ipcRenderer.invoke('update-rom', id, updates),
   getStats: () => ipcRenderer.invoke('get-stats'),
+  onScanProgress: (callback) => ipcRenderer.on('scan-progress', (event, data) => callback(data)),
 
   // Config Operations
   getConfig: (key) => ipcRenderer.invoke('get-config', key),

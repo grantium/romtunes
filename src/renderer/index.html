@@ -83,6 +83,10 @@
             </button>
           </div>
 
+          <button class="btn-secondary" id="manage-folders-btn" title="Manage Indexed Folders">
+            📁 Folders
+          </button>
+
           <button class="btn-settings" id="settings-btn" title="Settings">
             ⚙️
           </button>
@@ -529,6 +533,32 @@
 
       <div class="modal-footer">
         <button class="btn-secondary" id="sync-history-cancel">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manage Folders Modal -->
+  <div class="modal" id="manage-folders-modal">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2>Manage Indexed Folders</h2>
+        <button class="modal-close" id="manage-folders-close">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <p style="color: #888; font-size: 12px; margin-bottom: 16px;">
+          Remove ROM folders from your library. This only removes them from RomTunes - the files remain on your disk.
+        </p>
+
+        <div id="folders-container" class="folders-list">
+          <div style="text-align: center; padding: 40px; color: #666;">
+            Loading indexed folders...
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" id="manage-folders-cancel">Close</button>
       </div>
     </div>
   </div>

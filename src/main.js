@@ -120,21 +120,61 @@ ipcMain.handle('scan-roms', async (event, folderPath) => {
     '.rom', '.zip', '.7z'
   ];
 
-  async function scanDirectory(dir) {
+  let scannedFiles = 0;
+  let foundRoms = 0;
+  let skippedFiles = 0;
+
+  async function scanDirectory(dir, depth = 0) {
     const roms = [];
-    const entries = await fs.readdir(dir, { withFileTypes: true });
+    let entries;
+
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true });
+      console.log(`[Scanner] Scanning directory: ${dir} (${entries.length} entries, depth: ${depth})`);
+    } catch (error) {
+      console.error(`[Scanner] Failed to read directory ${dir}:`, error.message);
+      return roms;
+    }
 
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
 
       if (entry.isDirectory()) {
-        const subRoms = await scanDirectory(fullPath);
+        // Skip hidden directories and common non-ROM folders
+        if (entry.name.startsWith('.') ||
+            entry.name === 'node_modules' ||
+            entry.name === '__MACOSX') {
+          console.log(`[Scanner] Skipping hidden/system directory: ${entry.name}`);
+          continue;
+        }
+
+        const subRoms = await scanDirectory(fullPath, depth + 1);
         roms.push(...subRoms);
       } else if (entry.isFile()) {
+        scannedFiles++;
+
+        // Skip hidden files
+        if (entry.name.startsWith('.')) {
+          skippedFiles++;
+          continue;
+        }
+
         const ext = path.extname(entry.name).toLowerCase();
-        if (romExtensions.includes(ext)) {
+
+        // Early skip if not a ROM extension (avoid stat call)
+        if (!romExtensions.includes(ext)) {
+          skippedFiles++;
+          if (scannedFiles % 100 === 0) {
+            console.log(`[Scanner] Progress: ${scannedFiles} files scanned, ${foundRoms} ROMs found, ${skippedFiles} skipped`);
+          }
+          continue;
+        }
+
+        try {
           const stats = await fs.stat(fullPath);
-          roms.push({
+          foundRoms++;
+
+          const rom = {
             name: path.basename(entry.name, ext),
             filename: entry.name,
             path: fullPath,
@@ -142,12 +182,35 @@ ipcMain.handle('scan-roms', async (event, folderPath) => {
             extension: ext,
             system: await detectSystem(ext, fullPath),
             dateAdded: new Date().toISOString()
-          });
+          };
+
+          roms.push(rom);
+
+          // Send progress update every 10 ROMs
+          if (foundRoms % 10 === 0) {
+            console.log(`[Scanner] Found ROM #${foundRoms}: ${entry.name} (${formatBytes(stats.size)})`);
+            event.sender.send('scan-progress', {
+              scannedFiles,
+              foundRoms,
+              currentFile: entry.name,
+              currentPath: dir
+            });
+          }
+        } catch (error) {
+          console.error(`[Scanner] Failed to process file ${fullPath}:`, error.message);
         }
       }
     }
 
     return roms;
+  }
+
+  function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 
   async function detectSystem(extension, filePath) {
@@ -245,16 +308,40 @@ ipcMain.handle('scan-roms', async (event, folderPath) => {
   }
 
   try {
+    console.log(`[Scanner] Starting scan of: ${folderPath}`);
+    const startTime = Date.now();
+
     const roms = await scanDirectory(folderPath);
 
+    console.log(`[Scanner] Scan complete! Found ${roms.length} ROMs in ${scannedFiles} files (${skippedFiles} skipped)`);
+    console.log(`[Scanner] Adding ROMs to database...`);
+
     // Add ROMs to database
+    let added = 0;
+    let duplicates = 0;
+
     for (const rom of roms) {
-      db.addRom(rom);
+      const result = db.addRom(rom);
+      if (result) {
+        added++;
+      } else {
+        duplicates++;
+      }
     }
 
-    return { success: true, count: roms.length };
+    const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`[Scanner] Done! Added ${added} ROMs (${duplicates} duplicates skipped) in ${duration}s`);
+
+    return {
+      success: true,
+      count: added,
+      duplicates,
+      scannedFiles,
+      skippedFiles,
+      duration
+    };
   } catch (error) {
-    console.error('Error scanning ROMs:', error);
+    console.error('[Scanner] Error scanning ROMs:', error);
     return { success: false, error: error.message };
   }
 });
@@ -406,6 +493,56 @@ ipcMain.handle('get-systems', async () => {
 
 ipcMain.handle('delete-rom', async (event, id) => {
   return db.deleteRom(id);
+});
+
+ipcMain.handle('delete-roms-by-folder', async (event, folderPath) => {
+  try {
+    console.log(`[Delete] Removing all ROMs from folder: ${folderPath}`);
+
+    // Get all ROMs that start with this folder path
+    const allRoms = db.getRoms({});
+    const romsToDelete = allRoms.filter(rom => rom.path.startsWith(folderPath));
+
+    console.log(`[Delete] Found ${romsToDelete.length} ROMs to remove`);
+
+    let deleted = 0;
+    for (const rom of romsToDelete) {
+      db.deleteRom(rom.id);
+      deleted++;
+    }
+
+    console.log(`[Delete] Successfully removed ${deleted} ROMs`);
+    return { success: true, count: deleted };
+  } catch (error) {
+    console.error('[Delete] Error deleting ROMs by folder:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-indexed-folders', async () => {
+  try {
+    const allRoms = db.getRoms({});
+    const folders = new Map();
+
+    // Extract unique folder paths and count ROMs
+    for (const rom of allRoms) {
+      const folderPath = path.dirname(rom.path);
+
+      if (!folders.has(folderPath)) {
+        folders.set(folderPath, { path: folderPath, count: 0, size: 0 });
+      }
+
+      const folder = folders.get(folderPath);
+      folder.count++;
+      folder.size += rom.size || 0;
+    }
+
+    // Convert to array and sort by count
+    return Array.from(folders.values()).sort((a, b) => b.count - a.count);
+  } catch (error) {
+    console.error('[Folders] Error getting indexed folders:', error);
+    return [];
+  }
 });
 
 ipcMain.handle('update-rom', async (event, id, updates) => {

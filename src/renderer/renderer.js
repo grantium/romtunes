@@ -111,6 +111,20 @@ function setupEventListeners() {
 }
 
 // Handle Import
+// Set up scan progress listener
+window.electronAPI.onScanProgress((data) => {
+  const { scannedFiles, foundRoms, currentFile, currentPath } = data;
+  const progressText = `Scanning: ${foundRoms} ROMs found (${scannedFiles} files scanned)`;
+  updateLoadingText(progressText);
+});
+
+function updateLoadingText(text) {
+  const loadingTextEl = document.getElementById('loading-text');
+  if (loadingTextEl) {
+    loadingTextEl.textContent = text;
+  }
+}
+
 async function handleImport() {
   // Show import options menu
   const choice = confirm('Click OK to import a folder of ROMs, or Cancel to select individual ROM files.');
@@ -120,12 +134,17 @@ async function handleImport() {
     const folderPath = await window.electronAPI.selectFolder();
 
     if (folderPath) {
-      showLoading('Scanning for ROMs...');
+      showLoading('Starting scan...');
       const result = await window.electronAPI.scanRoms(folderPath);
       hideLoading();
 
       if (result.success) {
-        alert(`Successfully imported ${result.count} ROMs!`);
+        const message = `Successfully imported ${result.count} ROMs!\n\n` +
+          `Files scanned: ${result.scannedFiles}\n` +
+          `ROMs found: ${result.count + (result.duplicates || 0)}\n` +
+          `Duplicates skipped: ${result.duplicates || 0}\n` +
+          `Time: ${result.duration || '?'}s`;
+        alert(message);
         await loadRoms();
         await loadSystems();
         await updateStats();
@@ -801,6 +820,88 @@ async function scrapeCurrentRom() {
     alert(`Scraping error: ${error.message}`);
   } finally {
     scrapeRomBtn.disabled = false;
+  }
+}
+
+// Manage Folders Modal
+const manageFoldersBtn = document.getElementById('manage-folders-btn');
+const manageFoldersModal = document.getElementById('manage-folders-modal');
+const manageFoldersClose = document.getElementById('manage-folders-close');
+const manageFoldersCancel = document.getElementById('manage-folders-cancel');
+const foldersContainer = document.getElementById('folders-container');
+
+if (manageFoldersBtn) {
+  manageFoldersBtn.addEventListener('click', openManageFoldersModal);
+}
+if (manageFoldersClose) {
+  manageFoldersClose.addEventListener('click', closeManageFoldersModal);
+}
+if (manageFoldersCancel) {
+  manageFoldersCancel.addEventListener('click', closeManageFoldersModal);
+}
+
+async function openManageFoldersModal() {
+  manageFoldersModal.classList.add('active');
+  await loadIndexedFolders();
+}
+
+function closeManageFoldersModal() {
+  manageFoldersModal.classList.remove('active');
+}
+
+async function loadIndexedFolders() {
+  foldersContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;">Loading...</div>';
+
+  const folders = await window.electronAPI.getIndexedFolders();
+
+  if (folders.length === 0) {
+    foldersContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;">No indexed folders found</div>';
+    return;
+  }
+
+  foldersContainer.innerHTML = folders.map(folder => `
+    <div class="folder-item">
+      <div class="folder-info">
+        <div class="folder-path" title="${folder.path}">${folder.path}</div>
+        <div class="folder-meta">${folder.count} ROM${folder.count !== 1 ? 's' : ''} • ${formatBytes(folder.size)}</div>
+      </div>
+      <div class="folder-actions">
+        <button class="btn-small btn-secondary" onclick="showFolderInExplorer('${folder.path.replace(/'/g, "\\'")}')">
+          📁 Show
+        </button>
+        <button class="btn-small btn-danger" onclick="removeFolder('${folder.path.replace(/'/g, "\\'")}')">
+          Remove
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function showFolderInExplorer(folderPath) {
+  await window.electronAPI.openPath(folderPath);
+}
+
+async function removeFolder(folderPath) {
+  const confirmed = confirm(
+    `Remove all ROMs from this folder?\n\n` +
+    `Folder: ${folderPath}\n\n` +
+    `This only removes them from RomTunes - the files will remain on your disk.`
+  );
+
+  if (confirmed) {
+    showLoading('Removing ROMs...');
+    const result = await window.electronAPI.deleteRomsByFolder(folderPath);
+    hideLoading();
+
+    if (result.success) {
+      alert(`Successfully removed ${result.count} ROM${result.count !== 1 ? 's' : ''} from library.`);
+      await loadIndexedFolders();
+      await loadRoms();
+      await loadSystems();
+      await updateStats();
+    } else {
+      alert(`Error removing ROMs: ${result.error}`);
+    }
   }
 }
 
