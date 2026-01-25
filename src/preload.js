@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSyncProfiles: () => ipcRenderer.invoke('get-sync-profiles'),
   updateSyncProfile: (profileId, updates) => ipcRenderer.invoke('update-sync-profile', profileId, updates),
   addSystemMapping: (profileId, system, folder) => ipcRenderer.invoke('add-system-mapping', profileId, system, folder),
+  getDeviceStatus: () => ipcRenderer.invoke('get-device-status'),
 
   // Artwork Operations
   selectImage: () => ipcRenderer.invoke('select-image'),

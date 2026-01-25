@@ -22,6 +22,7 @@ async function init() {
     console.log('Initializing RomTunes...');
     await loadRoms();
     await loadSystems();
+    await loadDevices();
     await updateStats();
     setupEventListeners();
     console.log('RomTunes initialized successfully');
@@ -36,6 +37,19 @@ function setupEventListeners() {
   importBtn.addEventListener('click', handleImport);
   searchInput.addEventListener('input', handleSearch);
   sortSelect.addEventListener('change', handleSort);
+
+  // Device refresh button
+  const refreshDevicesBtn = document.getElementById('refresh-devices-btn');
+  if (refreshDevicesBtn) {
+    refreshDevicesBtn.addEventListener('click', async () => {
+      refreshDevicesBtn.style.transform = 'rotate(360deg)';
+      refreshDevicesBtn.style.transition = 'transform 0.5s';
+      await loadDevices();
+      setTimeout(() => {
+        refreshDevicesBtn.style.transform = '';
+      }, 500);
+    });
+  }
 
   viewBtns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -221,6 +235,35 @@ async function loadSystems() {
       loadRoms();
     });
   });
+}
+
+// Load Devices
+async function loadDevices() {
+  const devicesList = document.getElementById('devices-list');
+
+  try {
+    const devices = await window.electronAPI.getDeviceStatus();
+
+    if (devices.length === 0) {
+      devicesList.innerHTML = '<li style="padding: 8px 12px; font-size: 11px; color: #666;">No devices configured</li>';
+      return;
+    }
+
+    devicesList.innerHTML = devices
+      .map(device => `
+        <li class="device-item">
+          <div class="device-status ${device.connected ? 'connected' : 'disconnected'}"></div>
+          <div class="device-info">
+            <div class="device-name">${device.name}</div>
+            <div class="device-path">${device.connected ? device.path : 'Not connected'}</div>
+          </div>
+        </li>
+      `)
+      .join('');
+  } catch (error) {
+    console.error('Error loading devices:', error);
+    devicesList.innerHTML = '<li style="padding: 8px 12px; font-size: 11px; color: #ef4444;">Error loading devices</li>';
+  }
 }
 
 // Update Stats
