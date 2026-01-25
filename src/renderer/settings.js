@@ -572,9 +572,14 @@ async function startSync() {
       syncProgressText.textContent += `\n${result.message}`;
     }
 
-    // Update stats
+    // Update stats and reload ROMs to show updated sync badges
     await updateSyncStatusDisplay();
-    await updateStats();
+    if (window.updateStats) {
+      await window.updateStats();
+    }
+    if (window.loadRoms) {
+      await window.loadRoms();
+    }
 
     setTimeout(() => {
       closeSyncModal();
