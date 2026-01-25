@@ -62,6 +62,16 @@ function setupSettingsListeners() {
   syncCancel.addEventListener('click', closeSyncModal);
   syncStart.addEventListener('click', startSync);
 
+  // Update sync stats when profile changes
+  if (syncProfileSelect) {
+    syncProfileSelect.addEventListener('change', async () => {
+      const profileId = syncProfileSelect.value;
+      if (profileId) {
+        await loadSyncStats(profileId);
+      }
+    });
+  }
+
   // Import from device
   if (importDeviceBtn) {
     importDeviceBtn.addEventListener('click', openImportDeviceModal);
@@ -461,7 +471,7 @@ async function saveSettings() {
   alert('Settings saved successfully!');
 }
 
-function openSyncModal(romIds = null) {
+async function openSyncModal(romIds = null) {
   syncRomIds = romIds;
   updateSyncStatusDisplay();
 
@@ -471,6 +481,12 @@ function openSyncModal(romIds = null) {
     modalHeader.textContent = `Sync ${romIds.length} Selected ROM${romIds.length > 1 ? 's' : ''} to Device`;
   } else {
     modalHeader.textContent = 'Sync ROMs to Device';
+  }
+
+  // Load sync stats for the selected profile
+  const profileId = syncProfileSelect.value;
+  if (profileId) {
+    await loadSyncStats(profileId);
   }
 
   syncModal.classList.add('active');
@@ -968,6 +984,163 @@ function formatBytes(bytes) {
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Sync History Modal
+const syncHistoryModal = document.getElementById('sync-history-modal');
+const syncHistoryClose = document.getElementById('sync-history-close');
+const syncHistoryCancel = document.getElementById('sync-history-cancel');
+const viewSyncHistoryBtn = document.getElementById('view-sync-history-btn');
+const clearHistoryBtn = document.getElementById('clear-history-btn');
+const historyProfileFilter = document.getElementById('history-profile-filter');
+const syncHistoryContainer = document.getElementById('sync-history-container');
+const syncStatsContainer = document.getElementById('sync-stats-container');
+
+// Setup sync history listeners
+if (viewSyncHistoryBtn) {
+  viewSyncHistoryBtn.addEventListener('click', openSyncHistoryModal);
+}
+if (syncHistoryClose) {
+  syncHistoryClose.addEventListener('click', closeSyncHistoryModal);
+}
+if (syncHistoryCancel) {
+  syncHistoryCancel.addEventListener('click', closeSyncHistoryModal);
+}
+if (clearHistoryBtn) {
+  clearHistoryBtn.addEventListener('click', clearSyncHistory);
+}
+if (historyProfileFilter) {
+  historyProfileFilter.addEventListener('change', loadSyncHistory);
+}
+
+async function openSyncHistoryModal() {
+  syncHistoryModal.classList.add('active');
+
+  // Populate profile filter
+  await loadProfileFilter();
+
+  // Load history
+  await loadSyncHistory();
+}
+
+function closeSyncHistoryModal() {
+  syncHistoryModal.classList.remove('active');
+}
+
+async function loadProfileFilter() {
+  const profiles = await window.electronAPI.getSyncProfiles();
+
+  historyProfileFilter.innerHTML = '<option value="all">All Profiles</option>';
+  profiles.forEach(profile => {
+    const option = document.createElement('option');
+    option.value = profile.id;
+    option.textContent = profile.name || profile.id;
+    historyProfileFilter.appendChild(option);
+  });
+}
+
+async function loadSyncHistory() {
+  const profileId = historyProfileFilter.value === 'all' ? null : historyProfileFilter.value;
+  const history = await window.electronAPI.getSyncHistory(50, profileId);
+
+  if (history.length === 0) {
+    syncHistoryContainer.innerHTML = `
+      <div style="text-align: center; padding: 40px; color: #666;">
+        No sync history found
+      </div>
+    `;
+    return;
+  }
+
+  syncHistoryContainer.innerHTML = history.map(item => {
+    const timestamp = new Date(item.timestamp).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    const duration = item.duration ? `${(item.duration / 1000).toFixed(1)}s` : '—';
+    const statusClass = item.status || 'success';
+    const statusLabel = item.status === 'partial' ? 'Partial Success' : item.status;
+
+    return `
+      <div class="history-item">
+        <div class="history-header">
+          <div class="history-title">${item.profileName || item.profileId}</div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span class="history-status ${statusClass}">${statusLabel}</span>
+            <span class="history-timestamp">${timestamp}</span>
+          </div>
+        </div>
+        <div class="history-stats">
+          <div class="history-stat">
+            <div class="history-stat-label">ROMs Synced</div>
+            <div class="history-stat-value">${item.romsSynced || 0}</div>
+          </div>
+          <div class="history-stat">
+            <div class="history-stat-label">ROMs Skipped</div>
+            <div class="history-stat-value">${item.romsSkipped || 0}</div>
+          </div>
+          <div class="history-stat">
+            <div class="history-stat-label">Saves Synced</div>
+            <div class="history-stat-value">${item.savesCopied || 0}</div>
+          </div>
+          <div class="history-stat">
+            <div class="history-stat-label">Errors</div>
+            <div class="history-stat-value">${item.romsErrored || 0}</div>
+          </div>
+          <div class="history-stat">
+            <div class="history-stat-label">Duration</div>
+            <div class="history-stat-value">${duration}</div>
+          </div>
+          <div class="history-stat">
+            <div class="history-stat-label">Data Synced</div>
+            <div class="history-stat-value">${formatBytes(item.totalSize || 0)}</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function clearSyncHistory() {
+  const confirmed = confirm('Are you sure you want to clear all sync history?\n\nThis action cannot be undone.');
+
+  if (confirmed) {
+    await window.electronAPI.clearSyncHistory();
+    await loadSyncHistory();
+  }
+}
+
+async function loadSyncStats(profileId) {
+  if (!syncStatsContainer) return;
+
+  try {
+    const stats = await window.electronAPI.getSyncStats(profileId);
+    const lastSync = await window.electronAPI.getLastSync(profileId);
+
+    if (stats && stats.totalSyncs > 0) {
+      syncStatsContainer.style.display = 'block';
+
+      const lastSyncTime = lastSync ? new Date(lastSync.timestamp).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }) : 'Never';
+
+      document.getElementById('sync-last-time').textContent = lastSyncTime;
+      document.getElementById('sync-roms-count').textContent = stats.totalRomsSynced || 0;
+      document.getElementById('sync-saves-count').textContent = stats.totalSavesCopied || 0;
+    } else {
+      syncStatsContainer.style.display = 'none';
+    }
+  } catch (error) {
+    console.error('Failed to load sync stats:', error);
+  }
 }
 
 // Make functions globally accessible
