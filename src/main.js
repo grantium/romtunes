@@ -579,6 +579,41 @@ ipcMain.handle('add-system-mapping', async (event, profileId, system, folder) =>
   return config.addCustomSystemMapping(profileId, system, folder);
 });
 
+ipcMain.handle('get-device-status', async () => {
+  try {
+    const profiles = config.getSyncProfiles();
+    const deviceStatus = [];
+
+    for (const profile of profiles) {
+      if (!profile.enabled) continue;
+
+      let connected = false;
+      if (profile.basePath) {
+        try {
+          await fs.access(profile.basePath);
+          connected = true;
+          console.log(`[Device] ${profile.name || profile.id} is connected at ${profile.basePath}`);
+        } catch (error) {
+          console.log(`[Device] ${profile.name || profile.id} is disconnected (path not accessible)`);
+        }
+      }
+
+      deviceStatus.push({
+        id: profile.id,
+        name: profile.name || profile.id,
+        path: profile.basePath,
+        connected,
+        enabled: profile.enabled
+      });
+    }
+
+    return deviceStatus;
+  } catch (error) {
+    console.error('[Device] Error checking device status:', error);
+    return [];
+  }
+});
+
 // Artwork Handlers
 ipcMain.handle('select-image', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {

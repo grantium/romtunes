@@ -32,14 +32,16 @@ class SyncManager {
 
     // Get ROMs to sync
     let roms;
-    if (romIds) {
+    if (romIds && Array.isArray(romIds) && romIds.length > 0) {
       // Sync specific ROMs
+      console.log(`[Sync] Syncing ${romIds.length} specific ROMs`);
       roms = romIds.map(id => {
         const rom = this.db.db.prepare('SELECT * FROM roms WHERE id = ?').get(id);
         return rom;
       }).filter(Boolean);
     } else {
       // Sync all ROMs
+      console.log(`[Sync] Syncing all ROMs in library`);
       roms = this.db.getRoms({});
     }
 
