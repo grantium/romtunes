@@ -72,6 +72,12 @@ function setupSettingsListeners() {
     });
   }
 
+  // Verify sync status
+  const verifySyncBtn = document.getElementById('verify-sync-status-btn');
+  if (verifySyncBtn) {
+    verifySyncBtn.addEventListener('click', startVerifySyncStatus);
+  }
+
   // Import from device
   if (importDeviceBtn) {
     importDeviceBtn.addEventListener('click', openImportDeviceModal);
@@ -572,9 +578,14 @@ async function startSync() {
       syncProgressText.textContent += `\n${result.message}`;
     }
 
-    // Update stats
+    // Update stats and reload ROMs to show updated sync badges
     await updateSyncStatusDisplay();
-    await updateStats();
+    if (window.updateStats) {
+      await window.updateStats();
+    }
+    if (window.loadRoms) {
+      await window.loadRoms();
+    }
 
     setTimeout(() => {
       closeSyncModal();
@@ -585,6 +596,118 @@ async function startSync() {
     alert(`Sync failed: ${error.message}`);
     syncStart.disabled = false;
     syncCancel.disabled = false;
+  }
+}
+
+async function startVerifySyncStatus() {
+  const profileId = syncProfileSelect.value;
+
+  if (!profileId) {
+    alert('Please select a profile');
+    return;
+  }
+
+  // Verify profile first
+  const verification = await window.electronAPI.verifySync(profileId);
+
+  if (!verification.valid) {
+    alert(`Cannot verify: ${verification.message}`);
+    return;
+  }
+
+  const verifySyncBtn = document.getElementById('verify-sync-status-btn');
+  const originalText = verifySyncBtn.textContent;
+
+  // Disable button and show progress
+  verifySyncBtn.disabled = true;
+  verifySyncBtn.textContent = 'Verifying...';
+  syncProgressContainer.style.display = 'block';
+  syncProgressText.textContent = 'Starting verification...';
+  syncProgressBar.style.width = '0%';
+
+  // Clear progress log
+  const progressLog = document.getElementById('sync-progress-log');
+  if (progressLog) {
+    progressLog.innerHTML = '';
+  }
+
+  try {
+    // Listen for progress updates
+    window.electronAPI.onVerifyProgress((progress) => {
+      updateVerifyProgress(progress);
+    });
+
+    const result = await window.electronAPI.verifySyncStatus(profileId);
+
+    // Success
+    syncProgressBar.style.width = '100%';
+    let statusText = `Verification complete!\n${result.synced} ROMs on device, ${result.notOnDevice} not on device`;
+
+    if (result.errors.length > 0) {
+      statusText += ` (${result.errors.length} errors)`;
+    }
+
+    syncProgressText.textContent = statusText;
+
+    // Update stats and reload ROMs to show updated badges
+    await updateSyncStatusDisplay();
+    if (window.updateStats) {
+      await window.updateStats();
+    }
+    if (window.loadRoms) {
+      await window.loadRoms();
+    }
+
+    setTimeout(() => {
+      syncProgressContainer.style.display = 'none';
+      verifySyncBtn.disabled = false;
+      verifySyncBtn.textContent = originalText;
+    }, 2000);
+  } catch (error) {
+    alert(`Verification failed: ${error.message}`);
+    syncProgressContainer.style.display = 'none';
+    verifySyncBtn.disabled = false;
+    verifySyncBtn.textContent = originalText;
+  } finally {
+    // Clean up listener
+    window.electronAPI.removeVerifyProgressListener();
+  }
+}
+
+function updateVerifyProgress(progress) {
+  const percent = (progress.current / progress.total) * 100;
+  syncProgressBar.style.width = `${percent}%`;
+  syncProgressText.textContent = `Verifying... (${progress.current}/${progress.total})`;
+
+  // Add to progress log
+  const progressLog = document.getElementById('sync-progress-log');
+  if (progressLog) {
+    const entry = document.createElement('div');
+    entry.className = `sync-log-entry ${progress.status}`;
+
+    const statusIcon = {
+      synced: '✓',
+      not_on_device: '✗',
+      error: '⚠'
+    }[progress.status] || '•';
+
+    let text = `${statusIcon} ${progress.rom}`;
+    if (progress.devicePath) {
+      text += ` → ${progress.devicePath}`;
+    }
+    if (progress.error) {
+      text += ` (${progress.error})`;
+    }
+
+    entry.textContent = text;
+
+    // Keep only last 20 entries
+    while (progressLog.children.length >= 20) {
+      progressLog.removeChild(progressLog.firstChild);
+    }
+
+    progressLog.appendChild(entry);
+    progressLog.scrollTop = progressLog.scrollHeight;
   }
 }
 

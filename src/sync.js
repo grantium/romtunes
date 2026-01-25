@@ -333,6 +333,146 @@ class SyncManager {
     };
   }
 
+  // Verify which library ROMs are actually present on device
+  async verifySyncStatus(profileId, onProgress = null) {
+    const startTime = Date.now();
+    const profile = this.config.getSyncProfiles().find(p => p.id === profileId);
+
+    if (!profile) {
+      throw new Error(`Profile ${profileId} not found`);
+    }
+
+    if (!profile.basePath) {
+      throw new Error('Profile base path is not set');
+    }
+
+    // Verify base path exists
+    try {
+      await fs.access(profile.basePath);
+    } catch (error) {
+      throw new Error(`Base path does not exist: ${profile.basePath}`);
+    }
+
+    const results = {
+      total: 0,
+      synced: 0,
+      notOnDevice: 0,
+      errors: []
+    };
+
+    // Get all ROMs from library
+    const allRoms = this.db.getRoms({});
+    results.total = allRoms.length;
+
+    console.log(`[Verify] Checking ${allRoms.length} ROMs against device...`);
+
+    for (let i = 0; i < allRoms.length; i++) {
+      const rom = allRoms[i];
+
+      try {
+        // Get target folder for this ROM's system
+        const targetFolder = profile.systemMappings[rom.system];
+
+        if (!targetFolder) {
+          // No mapping for this system, mark as not on device
+          this.db.updateRom(rom.id, {
+            synced: 0,
+            lastSynced: new Date().toISOString()
+          });
+          results.notOnDevice++;
+          continue;
+        }
+
+        // Build expected path on device
+        const devicePath = path.join(profile.basePath, targetFolder, rom.filename);
+
+        // Check if file exists on device
+        try {
+          const deviceStat = await fs.stat(devicePath);
+
+          // File exists on device
+          this.db.updateRom(rom.id, {
+            synced: 1,
+            lastSynced: new Date().toISOString()
+          });
+          results.synced++;
+
+          if (onProgress) {
+            onProgress({
+              current: i + 1,
+              total: allRoms.length,
+              rom: rom.name,
+              status: 'synced',
+              devicePath: devicePath.replace(profile.basePath, '')
+            });
+          }
+        } catch (error) {
+          // File not found on device
+          this.db.updateRom(rom.id, {
+            synced: 0,
+            lastSynced: new Date().toISOString()
+          });
+          results.notOnDevice++;
+
+          if (onProgress) {
+            onProgress({
+              current: i + 1,
+              total: allRoms.length,
+              rom: rom.name,
+              status: 'not_on_device'
+            });
+          }
+        }
+      } catch (error) {
+        results.errors.push({
+          rom: rom.name,
+          error: error.message
+        });
+
+        if (onProgress) {
+          onProgress({
+            current: i + 1,
+            total: allRoms.length,
+            rom: rom.name,
+            status: 'error',
+            error: error.message
+          });
+        }
+      }
+    }
+
+    const duration = Date.now() - startTime;
+
+    console.log(`[Verify] Complete: ${results.synced} synced, ${results.notOnDevice} not on device, ${results.errors.length} errors`);
+
+    // Log verification to history
+    try {
+      this.db.addSyncHistory({
+        profileId: profileId,
+        profileName: profile.name || profile.id,
+        timestamp: new Date().toISOString(),
+        operation: 'verify',
+        romCount: results.total,
+        romsSynced: results.synced,
+        romsSkipped: results.notOnDevice,
+        romsErrored: results.errors.length,
+        savesCopied: 0,
+        savesSkipped: 0,
+        totalSize: 0,
+        duration: duration,
+        status: results.errors.length > 0 ? 'partial' : 'success',
+        errorMessage: results.errors.length > 0 ? `${results.errors.length} errors occurred` : null,
+        details: {
+          errors: results.errors.slice(0, 10)
+        }
+      });
+    } catch (historyError) {
+      console.error('Failed to log verification history:', historyError);
+    }
+
+    return results;
+  }
+
   // Import ROMs from device
   async scanDeviceForRoms(profileId) {
     const profile = this.config.getSyncProfiles().find(p => p.id === profileId);
