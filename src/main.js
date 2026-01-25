@@ -526,6 +526,23 @@ ipcMain.handle('import-from-device', async (event, profileId, romPaths) => {
   return syncManager.importFromDevice(profileId, romPaths);
 });
 
+// Sync History Handlers
+ipcMain.handle('get-sync-history', async (event, limit, profileId) => {
+  return db.getSyncHistory(limit, profileId);
+});
+
+ipcMain.handle('get-last-sync', async (event, profileId) => {
+  return db.getLastSync(profileId);
+});
+
+ipcMain.handle('get-sync-stats', async (event, profileId) => {
+  return db.getSyncStats(profileId);
+});
+
+ipcMain.handle('clear-sync-history', async (event, olderThanDays) => {
+  return db.clearSyncHistory(olderThanDays);
+});
+
 // File System Handlers
 ipcMain.handle('show-item-in-folder', async (event, filePath) => {
   try {

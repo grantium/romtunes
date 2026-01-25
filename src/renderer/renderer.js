@@ -253,11 +253,14 @@ function renderGridView() {
       : getSystemIcon(rom.system);
 
     const isSelected = selectedRoms.has(rom.id);
+    const syncStatus = rom.synced ? 'synced' : 'not-synced';
+    const syncLabel = rom.synced ? '✓ Synced' : 'Not Synced';
 
     card.innerHTML = `
       <input type="checkbox" class="rom-checkbox" data-id="${rom.id}" ${isSelected ? 'checked' : ''} />
       <div class="rom-cover">
         ${coverContent}
+        <div class="rom-sync-status ${syncStatus}">${syncLabel}</div>
         <div class="rom-favorite ${rom.favorite ? 'active' : ''}" data-id="${rom.id}">
           ${rom.favorite ? '⭐' : '☆'}
         </div>
@@ -338,6 +341,7 @@ function renderListView() {
     { key: 'system', label: 'System' },
     { key: 'extension', label: 'Type' },
     { key: 'size', label: 'Size' },
+    { key: 'synced', label: 'Sync Status' },
     { key: 'dateAdded', label: 'Date Added' }
   ];
 
@@ -404,6 +408,9 @@ function renderListView() {
       row.classList.add('selected');
     }
 
+    const syncStatus = rom.synced ? 'synced' : 'not-synced';
+    const syncLabel = rom.synced ? '✓ Synced' : 'Not Synced';
+
     row.innerHTML = `
       <div class="rom-row-checkbox-cell">
         <input type="checkbox" class="rom-row-checkbox" data-id="${rom.id}" ${isSelected ? 'checked' : ''} />
@@ -418,6 +425,7 @@ function renderListView() {
       <div class="rom-row-system" title="${rom.system}">${rom.system}</div>
       <div class="rom-row-extension">${rom.extension || '—'}</div>
       <div class="rom-row-size">${formatBytes(rom.size)}</div>
+      <div class="rom-row-sync-status ${syncStatus}">${syncLabel}</div>
       <div class="rom-row-date">${dateAdded}</div>
     `;
 

@@ -11,6 +11,7 @@ class SyncManager {
 
   async syncRoms(profileId, romIds = null, options = {}, onProgress = null) {
     const { syncSaves = true } = options;
+    const startTime = Date.now();
 
     const profile = this.config.getSyncProfiles().find(p => p.id === profileId);
 
@@ -53,6 +54,8 @@ class SyncManager {
         errors: []
       }
     };
+
+    let totalSize = 0;
 
     for (let i = 0; i < roms.length; i++) {
       const rom = roms[i];
@@ -103,6 +106,7 @@ class SyncManager {
           });
 
           results.synced++;
+          totalSize += rom.size || 0;
           status = 'copied';
         } else {
           results.skipped++;
@@ -143,6 +147,36 @@ class SyncManager {
           error: error.message
         });
       }
+    }
+
+    // Calculate duration
+    const duration = Date.now() - startTime;
+
+    // Log sync operation to history
+    try {
+      this.db.addSyncHistory({
+        profileId: profileId,
+        profileName: profile.name || profile.id,
+        timestamp: new Date().toISOString(),
+        operation: romIds ? 'sync_selected' : 'sync_all',
+        romCount: results.total,
+        romsSynced: results.synced,
+        romsSkipped: results.skipped,
+        romsErrored: results.errors.length,
+        savesCopied: results.saves.copied,
+        savesSkipped: results.saves.skipped,
+        totalSize: totalSize,
+        duration: duration,
+        status: results.errors.length > 0 ? 'partial' : 'success',
+        errorMessage: results.errors.length > 0 ? `${results.errors.length} errors occurred` : null,
+        details: {
+          romIds: romIds || null,
+          syncSaves: syncSaves,
+          errors: results.errors.slice(0, 10) // Store first 10 errors
+        }
+      });
+    } catch (historyError) {
+      console.error('Failed to log sync history:', historyError);
     }
 
     return results;
