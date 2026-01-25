@@ -1,13 +1,17 @@
 const fs = require('fs').promises;
 const path = require('path');
+const SaveManager = require('./saveManager');
 
 class SyncManager {
   constructor(config, database) {
     this.config = config;
     this.db = database;
+    this.saveManager = new SaveManager(config, database);
   }
 
-  async syncRoms(profileId, romIds = null, onProgress = null) {
+  async syncRoms(profileId, romIds = null, options = {}, onProgress = null) {
+    const { syncSaves = true } = options;
+
     const profile = this.config.getSyncProfiles().find(p => p.id === profileId);
 
     if (!profile) {
@@ -42,7 +46,12 @@ class SyncManager {
       total: roms.length,
       synced: 0,
       skipped: 0,
-      errors: []
+      errors: [],
+      saves: {
+        copied: 0,
+        skipped: 0,
+        errors: []
+      }
     };
 
     for (let i = 0; i < roms.length; i++) {
@@ -98,6 +107,23 @@ class SyncManager {
         } else {
           results.skipped++;
           status = 'skipped';
+        }
+
+        // Sync saves if enabled
+        if (syncSaves) {
+          try {
+            const saveResults = await this.saveManager.syncSavesBothWays(
+              rom,
+              profile.basePath,
+              targetFolder
+            );
+
+            results.saves.copied += saveResults.total.copied;
+            results.saves.skipped += saveResults.total.skipped;
+            results.saves.errors.push(...saveResults.total.errors);
+          } catch (saveError) {
+            console.error(`Error syncing saves for ${rom.name}:`, saveError.message);
+          }
         }
 
         // Report progress
@@ -269,6 +295,166 @@ class SyncManager {
       total: totalCount.count,
       unsynced: totalCount.count - syncedCount.count
     };
+  }
+
+  // Import ROMs from device
+  async scanDeviceForRoms(profileId) {
+    const profile = this.config.getSyncProfiles().find(p => p.id === profileId);
+
+    if (!profile) {
+      throw new Error(`Profile ${profileId} not found`);
+    }
+
+    if (!profile.basePath) {
+      throw new Error('Profile base path is not set');
+    }
+
+    // Verify base path exists
+    try {
+      await fs.access(profile.basePath);
+    } catch (error) {
+      throw new Error(`Base path does not exist: ${profile.basePath}`);
+    }
+
+    const romExtensions = [
+      '.nes', '.smc', '.sfc', '.gb', '.gbc', '.gba',
+      '.n64', '.z64', '.v64', '.nds', '.3ds',
+      '.iso', '.cue', '.bin', '.gcm', '.cso',
+      '.md', '.smd', '.gen', '.gg', '.sms',
+      '.rom', '.zip', '.7z'
+    ];
+
+    const foundRoms = [];
+    const existingPaths = new Set(
+      this.db.getRoms({}).map(rom => rom.path)
+    );
+
+    // Scan each system folder
+    for (const [system, folder] of Object.entries(profile.systemMappings || {})) {
+      const systemPath = path.join(profile.basePath, folder);
+
+      try {
+        await fs.access(systemPath);
+        const files = await fs.readdir(systemPath);
+
+        for (const file of files) {
+          const filePath = path.join(systemPath, file);
+          const ext = path.extname(file).toLowerCase();
+
+          if (romExtensions.includes(ext)) {
+            // Check if already in library
+            if (existingPaths.has(filePath)) {
+              continue; // Skip, already imported
+            }
+
+            try {
+              const stats = await fs.stat(filePath);
+
+              if (stats.isFile()) {
+                foundRoms.push({
+                  name: path.basename(file, ext),
+                  filename: file,
+                  path: filePath,
+                  size: stats.size,
+                  extension: ext,
+                  system: system,
+                  dateAdded: new Date().toISOString(),
+                  onDevice: true
+                });
+              }
+            } catch (error) {
+              // Skip files that can't be accessed
+              console.error(`Error accessing ${filePath}:`, error.message);
+            }
+          }
+        }
+      } catch (error) {
+        // System folder doesn't exist or can't be accessed
+        console.log(`Skipping ${system} - folder not found or inaccessible`);
+      }
+    }
+
+    return {
+      found: foundRoms.length,
+      roms: foundRoms
+    };
+  }
+
+  // Import ROMs from device to library
+  async importFromDevice(profileId, romPaths) {
+    const results = {
+      imported: 0,
+      skipped: 0,
+      errors: []
+    };
+
+    for (const romPath of romPaths) {
+      try {
+        // Check if ROM already exists
+        const existing = this.db.db.prepare('SELECT * FROM roms WHERE path = ?').get(romPath);
+
+        if (existing) {
+          results.skipped++;
+          continue;
+        }
+
+        // Get ROM info
+        const stats = await fs.stat(romPath);
+        const filename = path.basename(romPath);
+        const ext = path.extname(filename).toLowerCase();
+
+        // Detect system from path or extension
+        let system = 'Unknown';
+        const profile = this.config.getSyncProfiles().find(p => p.id === profileId);
+
+        if (profile && profile.systemMappings) {
+          for (const [sys, folder] of Object.entries(profile.systemMappings)) {
+            if (romPath.includes(folder)) {
+              system = sys;
+              break;
+            }
+          }
+        }
+
+        // Add to database
+        const rom = {
+          name: path.basename(filename, ext),
+          filename: filename,
+          path: romPath,
+          size: stats.size,
+          extension: ext,
+          system: system,
+          dateAdded: new Date().toISOString()
+        };
+
+        this.db.addRom(rom);
+        results.imported++;
+
+        // Also import any saves found on device
+        try {
+          const systemFolder = profile.systemMappings[system];
+          if (systemFolder) {
+            const romId = this.db.db.prepare('SELECT id FROM roms WHERE path = ?').get(romPath).id;
+            rom.id = romId;
+
+            await this.saveManager.syncSavesFromDevice(
+              rom,
+              profile.basePath,
+              systemFolder
+            );
+          }
+        } catch (saveError) {
+          console.error(`Error importing saves for ${rom.name}:`, saveError.message);
+        }
+      } catch (error) {
+        results.errors.push({
+          path: romPath,
+          error: error.message
+        });
+      }
+    }
+
+    return results;
   }
 }
 
