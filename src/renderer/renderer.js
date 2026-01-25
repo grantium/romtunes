@@ -574,6 +574,17 @@ importBoxartBtn.addEventListener('click', () => importArtwork('boxart'));
 importScreenshotBtn.addEventListener('click', () => importArtwork('screenshot'));
 scrapeRomBtn.addEventListener('click', scrapeCurrentRom);
 
+// Show in Folder button
+const showRomLocationBtn = document.getElementById('show-rom-location');
+showRomLocationBtn.addEventListener('click', async () => {
+  if (currentRom && currentRom.path) {
+    const result = await window.electronAPI.showItemInFolder(currentRom.path);
+    if (!result.success) {
+      alert(`Could not show file location: ${result.error}`);
+    }
+  }
+});
+
 async function openRomDetail(rom) {
   console.log('Opening ROM detail for:', rom);
   currentRom = rom;
@@ -588,6 +599,9 @@ async function openRomDetail(rom) {
 
   // Load and display artwork
   await loadRomArtwork(rom.id);
+
+  // Load and display saves
+  await loadRomSaves(rom.id);
 
   romDetailModal.classList.add('active');
 }
@@ -605,6 +619,86 @@ async function loadRomArtwork(romId) {
     artworkDisplay.innerHTML = `<img src="file://${artPath}" alt="Box Art" />`;
   } else {
     artworkDisplay.innerHTML = '<div class="artwork-placeholder">🎮</div>';
+  }
+}
+
+async function loadRomSaves(romId) {
+  const savesList = document.getElementById('detail-saves-list');
+  const saves = await window.electronAPI.getSaves(romId);
+
+  if (!saves || saves.length === 0) {
+    savesList.innerHTML = '<div class="saves-empty">No save files found</div>';
+    return;
+  }
+
+  savesList.innerHTML = saves
+    .map(save => {
+      const fileSize = save.size ? formatBytes(save.size) : '—';
+      const lastModified = save.lastModified
+        ? new Date(save.lastModified).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        : '—';
+
+      const saveType = getSaveType(save.filename);
+
+      return `
+        <div class="save-item">
+          <div class="save-info">
+            <div class="save-filename" title="${save.filename}">${save.filename}</div>
+            <div class="save-meta">${saveType} • ${fileSize} • ${lastModified}</div>
+          </div>
+          <div class="save-actions">
+            <button class="btn-small btn-danger" onclick="deleteSaveFile(${save.id})">Delete</button>
+          </div>
+        </div>
+      `;
+    })
+    .join('');
+}
+
+function getSaveType(filename) {
+  const ext = filename.split('.').pop().toLowerCase();
+  const types = {
+    'sav': 'SRAM Save',
+    'srm': 'SRAM Save',
+    'eep': 'EEPROM Save',
+    'fla': 'Flash Save',
+    'state': 'Save State',
+    'st0': 'Save State',
+    'st1': 'Save State',
+    'st2': 'Save State',
+    'st3': 'Save State',
+    'st4': 'Save State',
+    'st5': 'Save State',
+    'st6': 'Save State',
+    'st7': 'Save State',
+    'st8': 'Save State',
+    'st9': 'Save State'
+  };
+  return types[ext] || 'Save File';
+}
+
+async function deleteSaveFile(saveId) {
+  const confirmed = confirm('Are you sure you want to delete this save file?\n\nThis action cannot be undone!');
+
+  if (confirmed) {
+    showLoading('Deleting save file...');
+    const result = await window.electronAPI.deleteSave(saveId);
+    hideLoading();
+
+    if (result.success) {
+      // Reload saves for current ROM
+      if (currentRom) {
+        await loadRomSaves(currentRom.id);
+      }
+    } else {
+      alert(`Error deleting save: ${result.error}`);
+    }
   }
 }
 

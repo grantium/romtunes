@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
 const AdmZip = require('adm-zip');
@@ -524,6 +524,52 @@ ipcMain.handle('scan-device-for-roms', async (event, profileId) => {
 
 ipcMain.handle('import-from-device', async (event, profileId, romPaths) => {
   return syncManager.importFromDevice(profileId, romPaths);
+});
+
+// File System Handlers
+ipcMain.handle('show-item-in-folder', async (event, filePath) => {
+  try {
+    await fs.access(filePath);
+    shell.showItemInFolder(filePath);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('open-path', async (event, folderPath) => {
+  try {
+    await fs.access(folderPath);
+    await shell.openPath(folderPath);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-saves', async (event, romId) => {
+  return db.getSaves(romId);
+});
+
+ipcMain.handle('delete-save', async (event, saveId) => {
+  try {
+    const save = db.db.prepare('SELECT * FROM saves WHERE id = ?').get(saveId);
+
+    if (save && save.localPath) {
+      // Delete the physical file
+      try {
+        await fs.unlink(save.localPath);
+      } catch (error) {
+        console.error('Error deleting save file:', error);
+      }
+    }
+
+    // Delete from database
+    db.deleteSave(saveId);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 });
 
 // Scraper Handlers

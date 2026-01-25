@@ -38,6 +38,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   bulkScrape: (romIds, artworkTypes) => ipcRenderer.invoke('bulk-scrape', romIds, artworkTypes),
   testScraperCredentials: () => ipcRenderer.invoke('test-scraper-credentials'),
 
+  // File System Operations
+  showItemInFolder: (filePath) => ipcRenderer.invoke('show-item-in-folder', filePath),
+  openPath: (folderPath) => ipcRenderer.invoke('open-path', folderPath),
+  getSaves: (romId) => ipcRenderer.invoke('get-saves', romId),
+  deleteSave: (saveId) => ipcRenderer.invoke('delete-save', saveId),
+
   // Event Listeners
   onSyncProgress: (callback) => ipcRenderer.on('sync-progress', (event, data) => callback(data)),
   removeSyncProgressListener: () => ipcRenderer.removeAllListeners('sync-progress'),
