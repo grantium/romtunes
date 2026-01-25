@@ -559,6 +559,18 @@ button, input, select {
 
 .btn-small {
   padding: 6px 12px;
+  font-size: 12px;
+}
+
+.btn-small.btn-danger {
+  background: #dc3545;
+  border: none;
+  color: #fff;
+}
+
+.btn-small.btn-danger:hover {
+  background: #c82333;
+}
   background: #667eea;
   border: none;
   border-radius: 4px;
@@ -852,16 +864,18 @@ input:checked + .toggle-slider:before {
 }
 
 .mapping-list {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
   margin-top: 8px;
 }
 
 .mapping-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 6px 10px;
+  display: grid;
+  grid-template-columns: 200px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
   background: #1a1a1a;
   border-radius: 4px;
   font-size: 12px;
@@ -869,7 +883,6 @@ input:checked + .toggle-slider:before {
 
 .mapping-system {
   color: #fff;
-  flex: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -878,6 +891,80 @@ input:checked + .toggle-slider:before {
 .mapping-folder {
   color: #888;
   margin-left: 8px;
+}
+
+.mapping-folder-input {
+  flex: 1;
+  background: #0a0a0a;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  padding: 6px 8px;
+  color: #fff;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.mapping-folder-input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.mapping-add {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #2a2a2a;
+}
+
+/* Artwork Settings */
+.profile-artwork-settings summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 8px;
+  user-select: none;
+}
+
+.artwork-settings-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: #0a0a0a;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+.setting-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.small-label {
+  font-size: 12px;
+  color: #888;
+}
+
+.small-input,
+.small-select {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  padding: 6px 8px;
+  color: #fff;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.small-input:focus,
+.small-select:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.small-select {
+  cursor: pointer;
 }
 
 /* Sync UI */
