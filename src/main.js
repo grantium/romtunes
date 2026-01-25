@@ -686,6 +686,14 @@ ipcMain.handle('verify-sync', async (event, profileId) => {
   return syncManager.verifySync(profileId);
 });
 
+ipcMain.handle('verify-sync-status', async (event, profileId) => {
+  const result = await syncManager.verifySyncStatus(profileId, (progress) => {
+    // Send progress to renderer
+    mainWindow.webContents.send('verify-progress', progress);
+  });
+  return result;
+});
+
 ipcMain.handle('get-sync-status', async () => {
   return syncManager.getSyncStatus();
 });

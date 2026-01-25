@@ -316,7 +316,7 @@ function renderGridView() {
 
     const isSelected = selectedRoms.has(rom.id);
     const syncStatus = rom.synced ? 'synced' : 'not-synced';
-    const syncLabel = rom.synced ? '✓ Synced' : 'Not Synced';
+    const syncLabel = rom.synced ? '✓ Synced' : '💻 On Computer';
 
     card.innerHTML = `
       <input type="checkbox" class="rom-checkbox" data-id="${rom.id}" ${isSelected ? 'checked' : ''} />
@@ -471,7 +471,7 @@ function renderListView() {
     }
 
     const syncStatus = rom.synced ? 'synced' : 'not-synced';
-    const syncLabel = rom.synced ? '✓ Synced' : 'Not Synced';
+    const syncLabel = rom.synced ? '✓ Synced' : '💻 On Computer';
 
     row.innerHTML = `
       <div class="rom-row-checkbox-cell">

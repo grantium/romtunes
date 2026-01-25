@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   syncRoms: (profileId, romIds, options) => ipcRenderer.invoke('sync-roms', profileId, romIds, options),
   syncArtwork: (profileId, romIds, artworkTypes) => ipcRenderer.invoke('sync-artwork', profileId, romIds, artworkTypes),
   verifySync: (profileId) => ipcRenderer.invoke('verify-sync', profileId),
+  verifySyncStatus: (profileId) => ipcRenderer.invoke('verify-sync-status', profileId),
   getSyncStatus: () => ipcRenderer.invoke('get-sync-status'),
   scanDeviceForRoms: (profileId) => ipcRenderer.invoke('scan-device-for-roms', profileId),
   importFromDevice: (profileId, romPaths) => ipcRenderer.invoke('import-from-device', profileId, romPaths),
@@ -55,6 +56,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Event Listeners
   onSyncProgress: (callback) => ipcRenderer.on('sync-progress', (event, data) => callback(data)),
   removeSyncProgressListener: () => ipcRenderer.removeAllListeners('sync-progress'),
+  onVerifyProgress: (callback) => ipcRenderer.on('verify-progress', (event, data) => callback(data)),
+  removeVerifyProgressListener: () => ipcRenderer.removeAllListeners('verify-progress'),
   onScrapeProgress: (callback) => ipcRenderer.on('scrape-progress', (event, data) => callback(data)),
   removeScrapeProgressListener: () => ipcRenderer.removeAllListeners('scrape-progress')
 });
