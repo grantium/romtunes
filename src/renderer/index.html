@@ -337,6 +337,27 @@
       </div>
 
       <div class="modal-body">
+        <!-- Sync Stats -->
+        <div id="sync-stats-container" style="display: none; background: #1a1a1a; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 12px;">
+            <div>
+              <div style="font-size: 11px; color: #888; text-transform: uppercase; margin-bottom: 4px;">Last Sync</div>
+              <div id="sync-last-time" style="font-size: 14px; font-weight: 600;">Never</div>
+            </div>
+            <div>
+              <div style="font-size: 11px; color: #888; text-transform: uppercase; margin-bottom: 4px;">ROMs Synced</div>
+              <div id="sync-roms-count" style="font-size: 14px; font-weight: 600;">0</div>
+            </div>
+            <div>
+              <div style="font-size: 11px; color: #888; text-transform: uppercase; margin-bottom: 4px;">Saves Synced</div>
+              <div id="sync-saves-count" style="font-size: 14px; font-weight: 600;">0</div>
+            </div>
+          </div>
+          <button class="btn-small btn-secondary" id="view-sync-history-btn" style="width: 100%;">
+            📊 View Sync History
+          </button>
+        </div>
+
         <div class="setting-group">
           <label class="setting-label">Select Device Profile</label>
           <select id="sync-profile-select" class="setting-select"></select>
@@ -477,6 +498,37 @@
       <div class="modal-footer">
         <button class="btn-danger" id="rom-delete">Delete ROM</button>
         <button class="btn-secondary" id="rom-detail-cancel">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sync History Modal -->
+  <div class="modal" id="sync-history-modal">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2>Sync History</h2>
+        <button class="modal-close" id="sync-history-close">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <select id="history-profile-filter" class="setting-select" style="width: 200px;">
+              <option value="all">All Profiles</option>
+            </select>
+          </div>
+          <button class="btn-small btn-danger" id="clear-history-btn">Clear History</button>
+        </div>
+
+        <div id="sync-history-container" class="sync-history-list">
+          <div style="text-align: center; padding: 40px; color: #666;">
+            Loading sync history...
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" id="sync-history-cancel">Close</button>
       </div>
     </div>
   </div>

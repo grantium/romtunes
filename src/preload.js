@@ -32,6 +32,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSyncStatus: () => ipcRenderer.invoke('get-sync-status'),
   scanDeviceForRoms: (profileId) => ipcRenderer.invoke('scan-device-for-roms', profileId),
   importFromDevice: (profileId, romPaths) => ipcRenderer.invoke('import-from-device', profileId, romPaths),
+  getSyncHistory: (limit, profileId) => ipcRenderer.invoke('get-sync-history', limit, profileId),
+  getLastSync: (profileId) => ipcRenderer.invoke('get-last-sync', profileId),
+  getSyncStats: (profileId) => ipcRenderer.invoke('get-sync-stats', profileId),
+  clearSyncHistory: (olderThanDays) => ipcRenderer.invoke('clear-sync-history', olderThanDays),
 
   // Scraper Operations
   scrapeRom: (romId, artworkTypes) => ipcRenderer.invoke('scrape-rom', romId, artworkTypes),

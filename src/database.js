@@ -48,10 +48,31 @@ class RomDatabase {
         FOREIGN KEY (romId) REFERENCES roms(id) ON DELETE CASCADE
       );
 
+      CREATE TABLE IF NOT EXISTS sync_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        profileId TEXT NOT NULL,
+        profileName TEXT,
+        timestamp TEXT NOT NULL,
+        operation TEXT NOT NULL,
+        romCount INTEGER DEFAULT 0,
+        romsSynced INTEGER DEFAULT 0,
+        romsSkipped INTEGER DEFAULT 0,
+        romsErrored INTEGER DEFAULT 0,
+        savesCopied INTEGER DEFAULT 0,
+        savesSkipped INTEGER DEFAULT 0,
+        totalSize INTEGER DEFAULT 0,
+        duration INTEGER DEFAULT 0,
+        status TEXT NOT NULL,
+        errorMessage TEXT,
+        details TEXT
+      );
+
       CREATE INDEX IF NOT EXISTS idx_system ON roms(system);
       CREATE INDEX IF NOT EXISTS idx_name ON roms(name);
       CREATE INDEX IF NOT EXISTS idx_favorite ON roms(favorite);
       CREATE INDEX IF NOT EXISTS idx_saves_romId ON saves(romId);
+      CREATE INDEX IF NOT EXISTS idx_sync_history_timestamp ON sync_history(timestamp);
+      CREATE INDEX IF NOT EXISTS idx_sync_history_profileId ON sync_history(profileId);
     `);
 
     // Migrate existing database if needed
@@ -259,6 +280,106 @@ class RomDatabase {
   deleteSave(id) {
     const stmt = this.db.prepare('DELETE FROM saves WHERE id = ?');
     return stmt.run(id);
+  }
+
+  // Sync history management
+  addSyncHistory(history) {
+    const stmt = this.db.prepare(`
+      INSERT INTO sync_history
+      (profileId, profileName, timestamp, operation, romCount, romsSynced, romsSkipped, romsErrored,
+       savesCopied, savesSkipped, totalSize, duration, status, errorMessage, details)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    return stmt.run(
+      history.profileId,
+      history.profileName || null,
+      history.timestamp || new Date().toISOString(),
+      history.operation || 'sync',
+      history.romCount || 0,
+      history.romsSynced || 0,
+      history.romsSkipped || 0,
+      history.romsErrored || 0,
+      history.savesCopied || 0,
+      history.savesSkipped || 0,
+      history.totalSize || 0,
+      history.duration || 0,
+      history.status || 'success',
+      history.errorMessage || null,
+      history.details ? JSON.stringify(history.details) : null
+    );
+  }
+
+  getSyncHistory(limit = 50, profileId = null) {
+    let query = 'SELECT * FROM sync_history';
+    const params = [];
+
+    if (profileId) {
+      query += ' WHERE profileId = ?';
+      params.push(profileId);
+    }
+
+    query += ' ORDER BY timestamp DESC LIMIT ?';
+    params.push(limit);
+
+    const stmt = this.db.prepare(query);
+    const results = stmt.all(...params);
+
+    // Parse JSON details
+    return results.map(row => ({
+      ...row,
+      details: row.details ? JSON.parse(row.details) : null
+    }));
+  }
+
+  getLastSync(profileId) {
+    const stmt = this.db.prepare(`
+      SELECT * FROM sync_history
+      WHERE profileId = ? AND status = 'success'
+      ORDER BY timestamp DESC
+      LIMIT 1
+    `);
+    const result = stmt.get(profileId);
+
+    if (result && result.details) {
+      result.details = JSON.parse(result.details);
+    }
+
+    return result;
+  }
+
+  getSyncStats(profileId = null) {
+    let query = `
+      SELECT
+        COUNT(*) as totalSyncs,
+        SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as successfulSyncs,
+        SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) as failedSyncs,
+        SUM(romsSynced) as totalRomsSynced,
+        SUM(savesCopied) as totalSavesCopied,
+        MAX(timestamp) as lastSyncTime
+      FROM sync_history
+    `;
+
+    const params = [];
+    if (profileId) {
+      query += ' WHERE profileId = ?';
+      params.push(profileId);
+    }
+
+    const stmt = this.db.prepare(query);
+    return stmt.get(...params);
+  }
+
+  clearSyncHistory(olderThanDays = null) {
+    if (olderThanDays) {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
+      const stmt = this.db.prepare('DELETE FROM sync_history WHERE timestamp < ?');
+      return stmt.run(cutoffDate.toISOString());
+    } else {
+      const stmt = this.db.prepare('DELETE FROM sync_history');
+      return stmt.run();
+    }
   }
 
   close() {
