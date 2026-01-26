@@ -697,6 +697,8 @@ function updateVerifyProgress(progress) {
 
     const statusIcon = {
       synced: '✓',
+      device_only: '📱',
+      library_only: '💻',
       not_on_device: '✗',
       removed: '🗑',
       error: '⚠'

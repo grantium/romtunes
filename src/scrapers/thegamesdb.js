@@ -53,18 +53,22 @@ class TheGamesDB {
       protocol.get(url, (res) => {
         let data = '';
 
+        // Log HTTP status
+        console.log(`[TheGamesDB] HTTP Status: ${res.statusCode}`);
+
         res.on('data', (chunk) => {
           data += chunk;
         });
 
         res.on('end', () => {
           try {
-            console.log('[TheGamesDB] Response:', data.substring(0, 500));
+            console.log('[TheGamesDB] Response (first 500 chars):', data.substring(0, 500));
 
             // Check if response is HTML error page before parsing
             const trimmed = data.trim();
             if (trimmed.startsWith('<!DOCTYPE') || trimmed.startsWith('<html') || trimmed.startsWith('<HTML')) {
               console.error('[TheGamesDB] Received HTML response instead of JSON');
+              console.error('[TheGamesDB] Full response:', data);
               reject(new Error('TheGamesDB returned an error page. Your API key may be invalid or you may have exceeded the rate limit. Get a free API key at https://forums.thegamesdb.net/viewforum.php?f=10'));
               return;
             }
@@ -73,18 +77,26 @@ class TheGamesDB {
 
             // Check for API errors
             if (json.code && json.code !== 200) {
+              console.error('[TheGamesDB] API error code:', json.code, 'Status:', json.status);
               reject(new Error(json.status || 'API request failed'));
               return;
+            }
+
+            // Check for successful response structure
+            if (!json.data) {
+              console.warn('[TheGamesDB] Response missing data field:', json);
             }
 
             resolve(json);
           } catch (error) {
             const preview = data.substring(0, 200);
             console.error('[TheGamesDB] Failed to parse response:', preview);
+            console.error('[TheGamesDB] Parse error:', error.message);
             reject(new Error(`Failed to parse API response: ${preview}...`));
           }
         });
       }).on('error', (error) => {
+        console.error('[TheGamesDB] Network error:', error);
         reject(error);
       });
     });
@@ -117,6 +129,7 @@ class TheGamesDB {
     await this.waitForRateLimit();
 
     const platformId = this.getPlatformId(systemName);
+    console.log(`[TheGamesDB] Searching for: "${gameName}" on platform: ${systemName} (ID: ${platformId})`);
 
     const params = {
       name: gameName
@@ -127,19 +140,25 @@ class TheGamesDB {
     }
 
     const url = this.buildUrl('Games/ByGameName', params);
+    console.log('[TheGamesDB] Search URL:', url.replace(/apikey=[^&]+/, 'apikey=***'));
 
     try {
       const response = await this.makeRequest(url);
 
+      console.log('[TheGamesDB] Search response data:', response.data ? 'Present' : 'Missing');
+      console.log('[TheGamesDB] Games found:', response.data?.games?.length || 0);
+
       if (response.data && response.data.games && response.data.games.length > 0) {
         // Get the first match
         const game = response.data.games[0];
+        console.log('[TheGamesDB] First match:', game.game_title);
         return await this.getGameDetails(game.id, response.data.base_url);
       }
 
+      console.log('[TheGamesDB] No games found for:', gameName);
       return null;
     } catch (error) {
-      console.error('[TheGamesDB] Search error:', error);
+      console.error('[TheGamesDB] Search error:', error.message);
       throw error;
     }
   }

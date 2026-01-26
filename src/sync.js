@@ -417,38 +417,38 @@ class SyncManager {
           continue;
         }
 
-        // Update sync status based on device presence
-        if (existsOnDevice) {
-          this.db.updateRom(rom.id, {
-            synced: 1,
-            lastSynced: new Date().toISOString()
-          });
+        // Update sync status based on where file exists
+        // synced: 0 = library only, 1 = both locations, 2 = device only
+        let syncStatus;
+        let syncLabel;
+
+        if (existsInLibrary && existsOnDevice) {
+          syncStatus = 1; // Both locations
+          syncLabel = 'synced';
           results.synced++;
-
-          if (onProgress) {
-            onProgress({
-              current: i + 1,
-              total: allRoms.length,
-              rom: rom.name,
-              status: 'synced',
-              devicePath: devicePath.replace(profile.basePath, '')
-            });
-          }
+        } else if (existsOnDevice && !existsInLibrary) {
+          syncStatus = 2; // Device only
+          syncLabel = 'device_only';
+          results.synced++; // Still count as synced for stats
         } else {
-          this.db.updateRom(rom.id, {
-            synced: 0,
-            lastSynced: new Date().toISOString()
-          });
+          syncStatus = 0; // Library only
+          syncLabel = 'library_only';
           results.notOnDevice++;
+        }
 
-          if (onProgress) {
-            onProgress({
-              current: i + 1,
-              total: allRoms.length,
-              rom: rom.name,
-              status: 'not_on_device'
-            });
-          }
+        this.db.updateRom(rom.id, {
+          synced: syncStatus,
+          lastSynced: new Date().toISOString()
+        });
+
+        if (onProgress) {
+          onProgress({
+            current: i + 1,
+            total: allRoms.length,
+            rom: rom.name,
+            status: syncLabel,
+            devicePath: devicePath ? devicePath.replace(profile.basePath, '') : null
+          });
         }
       } catch (error) {
         results.errors.push({
