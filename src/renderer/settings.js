@@ -580,6 +580,9 @@ async function startSync() {
 
     // Update stats and reload ROMs to show updated sync badges
     await updateSyncStatusDisplay();
+    if (window.loadSaves) {
+      await window.loadSaves();
+    }
     if (window.updateStats) {
       await window.updateStats();
     }
@@ -655,6 +658,9 @@ async function startVerifySyncStatus() {
 
     // Update stats and reload ROMs to show updated badges
     await updateSyncStatusDisplay();
+    if (window.loadSaves) {
+      await window.loadSaves();
+    }
     if (window.updateStats) {
       await window.updateStats();
     }

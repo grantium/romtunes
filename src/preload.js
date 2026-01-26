@@ -51,6 +51,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showItemInFolder: (filePath) => ipcRenderer.invoke('show-item-in-folder', filePath),
   openPath: (folderPath) => ipcRenderer.invoke('open-path', folderPath),
   getSaves: (romId) => ipcRenderer.invoke('get-saves', romId),
+  getAllSaves: () => ipcRenderer.invoke('get-all-saves'),
   deleteSave: (saveId) => ipcRenderer.invoke('delete-save', saveId),
 
   // Event Listeners

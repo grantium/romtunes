@@ -1,8 +1,9 @@
 // State
 let currentView = 'grid';
-let currentFilter = { system: 'all', search: '', sortBy: 'name', sortOrder: 'ASC', favorite: false };
+let currentFilter = { system: 'all', search: '', sortBy: 'name', sortOrder: 'ASC', favorite: false, hasSaves: false };
 let roms = [];
 let selectedRoms = new Set(); // Track selected ROM IDs
+let allSaves = []; // Cache all saves
 
 // DOM Elements
 const importBtn = document.getElementById('import-btn');
@@ -20,6 +21,7 @@ const navItems = document.querySelectorAll('.nav-item');
 async function init() {
   try {
     console.log('Initializing RomTunes...');
+    await loadSaves();
     await loadRoms();
     await loadSystems();
     await loadDevices();
@@ -108,9 +110,15 @@ function setupEventListeners() {
       if (filter === 'favorites') {
         currentFilter.favorite = true;
         currentFilter.system = 'all';
+        currentFilter.hasSaves = false;
+      } else if (filter === 'saves') {
+        currentFilter.favorite = false;
+        currentFilter.system = 'all';
+        currentFilter.hasSaves = true;
       } else if (filter === 'all') {
         currentFilter.favorite = false;
         currentFilter.system = 'all';
+        currentFilter.hasSaves = false;
       }
 
       navItems.forEach(i => i.classList.remove('active'));
@@ -202,7 +210,15 @@ function handleSort(e) {
 // Load ROMs
 async function loadRoms() {
   console.log('loadRoms() called');
-  roms = await window.electronAPI.getRoms(currentFilter);
+  let filteredRoms = await window.electronAPI.getRoms(currentFilter);
+
+  // Filter by saves if hasSaves is true
+  if (currentFilter.hasSaves) {
+    const romIdsWithSaves = new Set(allSaves.map(save => save.romId));
+    filteredRoms = filteredRoms.filter(rom => romIdsWithSaves.has(rom.id));
+  }
+
+  roms = filteredRoms;
   renderRoms();
 }
 
@@ -227,6 +243,7 @@ async function loadSystems() {
     item.addEventListener('click', () => {
       currentFilter.system = item.dataset.system;
       currentFilter.favorite = false;
+      currentFilter.hasSaves = false;
 
       // Remove active from all nav items
       document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
@@ -266,6 +283,20 @@ async function loadDevices() {
   }
 }
 
+// Load Saves
+async function loadSaves() {
+  try {
+    allSaves = await window.electronAPI.getAllSaves();
+    console.log(`Loaded ${allSaves.length} save files`);
+  } catch (error) {
+    console.error('Error loading saves:', error);
+    allSaves = [];
+  }
+}
+
+// Expose loadSaves globally for settings.js to use
+window.loadSaves = loadSaves;
+
 // Update Stats
 async function updateStats() {
   const stats = await window.electronAPI.getStats();
@@ -277,6 +308,11 @@ async function updateStats() {
 
   const favoriteCount = roms.filter(rom => rom.favorite).length;
   document.getElementById('favorites-count').textContent = favoriteCount;
+
+  // Count ROMs with saves
+  const romIdsWithSaves = new Set(allSaves.map(save => save.romId));
+  const romsWithSavesCount = [...romIdsWithSaves].length;
+  document.getElementById('saves-count').textContent = romsWithSavesCount;
 }
 
 // Render ROMs
