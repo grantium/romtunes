@@ -643,6 +643,10 @@ async function startVerifySyncStatus() {
     syncProgressBar.style.width = '100%';
     let statusText = `Verification complete!\n${result.synced} ROMs on device, ${result.notOnDevice} not on device`;
 
+    if (result.missingFiles > 0) {
+      statusText += `\n${result.missingFiles} missing file${result.missingFiles > 1 ? 's' : ''} removed from library`;
+    }
+
     if (result.errors.length > 0) {
       statusText += ` (${result.errors.length} errors)`;
     }
@@ -688,12 +692,16 @@ function updateVerifyProgress(progress) {
     const statusIcon = {
       synced: '✓',
       not_on_device: '✗',
+      removed: '🗑',
       error: '⚠'
     }[progress.status] || '•';
 
     let text = `${statusIcon} ${progress.rom}`;
     if (progress.devicePath) {
       text += ` → ${progress.devicePath}`;
+    }
+    if (progress.reason) {
+      text += ` (${progress.reason})`;
     }
     if (progress.error) {
       text += ` (${progress.error})`;

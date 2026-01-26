@@ -61,6 +61,14 @@ class TheGamesDB {
           try {
             console.log('[TheGamesDB] Response:', data.substring(0, 500));
 
+            // Check if response is HTML error page before parsing
+            const trimmed = data.trim();
+            if (trimmed.startsWith('<!DOCTYPE') || trimmed.startsWith('<html') || trimmed.startsWith('<HTML')) {
+              console.error('[TheGamesDB] Received HTML response instead of JSON');
+              reject(new Error('TheGamesDB returned an error page. Your API key may be invalid or you may have exceeded the rate limit. Get a free API key at https://forums.thegamesdb.net/viewforum.php?f=10'));
+              return;
+            }
+
             const json = JSON.parse(data);
 
             // Check for API errors
@@ -308,7 +316,8 @@ class TheGamesDB {
 
   async testCredentials() {
     try {
-      if (!this.apiKey) {
+      const apiKey = this.getApiKey();
+      if (!apiKey) {
         return {
           success: false,
           error: 'Please enter your TheGamesDB API key. Register for free at https://forums.thegamesdb.net/viewforum.php?f=10'
@@ -328,7 +337,7 @@ class TheGamesDB {
       console.error('[TheGamesDB] API key test failed:', error.message);
       return {
         success: false,
-        error: `TheGamesDB error: ${error.message}. Your API key may be invalid. Get a free key at https://forums.thegamesdb.net/viewforum.php?f=10`
+        error: `TheGamesDB error: ${error.message}`
       };
     }
   }

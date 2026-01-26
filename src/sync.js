@@ -357,6 +357,7 @@ class SyncManager {
       total: 0,
       synced: 0,
       notOnDevice: 0,
+      missingFiles: 0,
       errors: []
     };
 
@@ -370,27 +371,54 @@ class SyncManager {
       const rom = allRoms[i];
 
       try {
+        // First check if ROM file exists in library location
+        let existsInLibrary = false;
+        try {
+          await fs.access(rom.path);
+          existsInLibrary = true;
+        } catch (error) {
+          console.log(`[Verify] ROM file not found in library: ${rom.path}`);
+        }
+
         // Get target folder for this ROM's system
         const targetFolder = profile.systemMappings[rom.system];
 
-        if (!targetFolder) {
-          // No mapping for this system, mark as not on device
-          this.db.updateRom(rom.id, {
-            synced: 0,
-            lastSynced: new Date().toISOString()
-          });
-          results.notOnDevice++;
+        let existsOnDevice = false;
+        let devicePath = null;
+
+        if (targetFolder) {
+          // Build expected path on device
+          devicePath = path.join(profile.basePath, targetFolder, rom.filename);
+
+          // Check if file exists on device
+          try {
+            await fs.stat(devicePath);
+            existsOnDevice = true;
+          } catch (error) {
+            // File not found on device
+          }
+        }
+
+        // If file doesn't exist anywhere, remove from library
+        if (!existsInLibrary && !existsOnDevice) {
+          console.log(`[Verify] Removing ROM from library (file missing): ${rom.name}`);
+          this.db.deleteRom(rom.id);
+          results.missingFiles++;
+
+          if (onProgress) {
+            onProgress({
+              current: i + 1,
+              total: allRoms.length,
+              rom: rom.name,
+              status: 'removed',
+              reason: 'File not found in library or on device'
+            });
+          }
           continue;
         }
 
-        // Build expected path on device
-        const devicePath = path.join(profile.basePath, targetFolder, rom.filename);
-
-        // Check if file exists on device
-        try {
-          const deviceStat = await fs.stat(devicePath);
-
-          // File exists on device
+        // Update sync status based on device presence
+        if (existsOnDevice) {
           this.db.updateRom(rom.id, {
             synced: 1,
             lastSynced: new Date().toISOString()
@@ -406,8 +434,7 @@ class SyncManager {
               devicePath: devicePath.replace(profile.basePath, '')
             });
           }
-        } catch (error) {
-          // File not found on device
+        } else {
           this.db.updateRom(rom.id, {
             synced: 0,
             lastSynced: new Date().toISOString()
@@ -443,7 +470,7 @@ class SyncManager {
 
     const duration = Date.now() - startTime;
 
-    console.log(`[Verify] Complete: ${results.synced} synced, ${results.notOnDevice} not on device, ${results.errors.length} errors`);
+    console.log(`[Verify] Complete: ${results.synced} synced, ${results.notOnDevice} not on device, ${results.missingFiles} removed, ${results.errors.length} errors`);
 
     // Log verification to history
     try {
