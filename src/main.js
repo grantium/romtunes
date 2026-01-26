@@ -748,6 +748,10 @@ ipcMain.handle('get-saves', async (event, romId) => {
   return db.getSaves(romId);
 });
 
+ipcMain.handle('get-all-saves', async () => {
+  return db.getAllSaves();
+});
+
 ipcMain.handle('delete-save', async (event, saveId) => {
   try {
     const save = db.db.prepare('SELECT * FROM saves WHERE id = ?').get(saveId);
