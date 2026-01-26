@@ -357,6 +357,7 @@ class SyncManager {
       total: 0,
       synced: 0,
       notOnDevice: 0,
+      missingFiles: 0,
       errors: []
     };
 
