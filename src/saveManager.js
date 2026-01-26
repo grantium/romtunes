@@ -69,8 +69,13 @@ class SaveManager {
       const romDir = path.join(deviceBasePath, systemFolder);
       const romBaseName = path.basename(rom.filename, rom.extension);
 
+      console.log(`[SaveManager] Scanning device saves for ${rom.name}`);
+      console.log(`[SaveManager] ROM dir: ${romDir}`);
+      console.log(`[SaveManager] ROM base name: ${romBaseName}`);
+
       // Check for saves in the ROM directory
       const saveExtensions = this.getSaveExtensions(rom.system);
+      console.log(`[SaveManager] Looking for save extensions: ${saveExtensions.join(', ')}`);
 
       for (const ext of saveExtensions) {
         const saveFilename = romBaseName + ext;
@@ -79,6 +84,7 @@ class SaveManager {
         try {
           const stats = await fs.stat(savePath);
 
+          console.log(`[SaveManager] Found save file: ${saveFilename} (${stats.size} bytes)`);
           saves.push({
             romId: rom.id,
             saveType: this.getSaveType(ext),
@@ -255,6 +261,8 @@ class SaveManager {
       // Get device saves
       const deviceSaves = await this.scanDeviceSaves(rom, deviceBasePath, systemFolder);
 
+      console.log(`[SaveManager] Found ${deviceSaves.length} save(s) on device for ${rom.name}`);
+
       if (deviceSaves.length === 0) {
         return results;
       }
@@ -262,6 +270,7 @@ class SaveManager {
       // Ensure local save directory exists
       const localSaveDir = this.getLocalSaveDir(rom.id);
       await fs.mkdir(localSaveDir, { recursive: true });
+      console.log(`[SaveManager] Local save directory: ${localSaveDir}`);
 
       // Sync each save file
       for (const save of deviceSaves) {
@@ -276,14 +285,19 @@ class SaveManager {
 
             // Compare timestamps - only copy if device is newer
             if (new Date(deviceStats.mtime) <= new Date(localStats.mtime)) {
+              console.log(`[SaveManager] Skipping ${save.filename} (local is newer or same)`);
               shouldCopy = false;
               results.skipped++;
+            } else {
+              console.log(`[SaveManager] Device save is newer: ${save.filename}`);
             }
           } catch {
             // Local doesn't exist, copy
+            console.log(`[SaveManager] Local save doesn't exist: ${save.filename}`);
           }
 
           if (shouldCopy) {
+            console.log(`[SaveManager] Copying from device: ${save.devicePath} → ${localPath}`);
             await fs.copyFile(save.devicePath, localPath);
             results.copied++;
 
@@ -294,8 +308,10 @@ class SaveManager {
               lastSynced: new Date().toISOString(),
               syncDirection: 'from-device'
             });
+            console.log(`[SaveManager] Successfully copied and added to database`);
           }
         } catch (error) {
+          console.error(`[SaveManager] Error syncing save ${save.filename}:`, error.message);
           results.errors.push({
             save: save.filename,
             error: error.message
@@ -306,13 +322,21 @@ class SaveManager {
       console.error(`Error syncing saves from device for ${rom.name}:`, error.message);
     }
 
+    console.log(`[SaveManager] Sync from device complete: ${results.copied} copied, ${results.skipped} skipped, ${results.errors.length} errors`);
     return results;
   }
 
   // Two-way sync - sync both directions
   async syncSavesBothWays(rom, deviceBasePath, systemFolder) {
+    console.log(`[SaveManager] Starting two-way save sync for ${rom.name}`);
+    console.log(`[SaveManager] Device base path: ${deviceBasePath}`);
+    console.log(`[SaveManager] System folder: ${systemFolder}`);
+
     const toDeviceResults = await this.syncSavesToDevice(rom, deviceBasePath, systemFolder);
+    console.log(`[SaveManager] To device: ${toDeviceResults.copied} copied, ${toDeviceResults.skipped} skipped`);
+
     const fromDeviceResults = await this.syncSavesFromDevice(rom, deviceBasePath, systemFolder);
+    console.log(`[SaveManager] From device: ${fromDeviceResults.copied} copied, ${fromDeviceResults.skipped} skipped`);
 
     return {
       toDevice: toDeviceResults,
