@@ -5,6 +5,22 @@
 ![RomTunes](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
+## ⚠️ **PRE-RELEASE SOFTWARE - USE AT YOUR OWN RISK**
+
+**This software is currently in early development and should be considered ALPHA/PRE-RELEASE quality.**
+
+- 🐛 **Expect bugs and issues**
+- 💾 **Your ROM files are safe** - RomTunes only manages a library database, it doesn't modify your original files
+- 📝 **Backup your library database** if you're testing features
+- 🚧 **Not recommended for production use** - Features are still being developed and tested
+- 🔄 **Breaking changes may occur** between versions
+
+**If you encounter issues**, please report them on the [Issues page](https://github.com/grantium/romtunes/issues). This helps make RomTunes better for everyone!
+
+**Proceed with caution and please wait for a stable 1.0 release if you need reliability.**
+
+---
+
 ## Installation
 
 ### Download
