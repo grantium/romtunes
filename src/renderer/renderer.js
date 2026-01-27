@@ -351,8 +351,19 @@ function renderGridView() {
       : getSystemIcon(rom.system);
 
     const isSelected = selectedRoms.has(rom.id);
-    const syncStatus = rom.synced ? 'synced' : 'not-synced';
-    const syncLabel = rom.synced ? '✓ Synced' : '💻 On Computer';
+
+    // Determine sync status: 0 = library only, 1 = both, 2 = device only
+    let syncStatus, syncLabel;
+    if (rom.synced === 1) {
+      syncStatus = 'synced';
+      syncLabel = '✓ Synced';
+    } else if (rom.synced === 2) {
+      syncStatus = 'device-only';
+      syncLabel = '📱 On Device';
+    } else {
+      syncStatus = 'library-only';
+      syncLabel = '💻 On Computer';
+    }
 
     card.innerHTML = `
       <input type="checkbox" class="rom-checkbox" data-id="${rom.id}" ${isSelected ? 'checked' : ''} />
@@ -506,8 +517,18 @@ function renderListView() {
       row.classList.add('selected');
     }
 
-    const syncStatus = rom.synced ? 'synced' : 'not-synced';
-    const syncLabel = rom.synced ? '✓ Synced' : '💻 On Computer';
+    // Determine sync status: 0 = library only, 1 = both, 2 = device only
+    let syncStatus, syncLabel;
+    if (rom.synced === 1) {
+      syncStatus = 'synced';
+      syncLabel = '✓ Synced';
+    } else if (rom.synced === 2) {
+      syncStatus = 'device-only';
+      syncLabel = '📱 On Device';
+    } else {
+      syncStatus = 'library-only';
+      syncLabel = '💻 On Computer';
+    }
 
     row.innerHTML = `
       <div class="rom-row-checkbox-cell">
