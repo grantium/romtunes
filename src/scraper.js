@@ -68,11 +68,46 @@ class ScreenScraper {
     return url;
   }
 
-  async makeRequest(url) {
+  async makeRequest(url, maxRetries = 2) {
+    let lastError;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        return await this.makeSingleRequest(url);
+      } catch (error) {
+        lastError = error;
+
+        // Retry transient network/server failures
+        const isTransient = /timed out|socket hang up|ECONNRESET|ENOTFOUND|EAI_AGAIN|429|5\d\d/i.test(error.message);
+        if (!isTransient || attempt === maxRetries) {
+          throw error;
+        }
+
+        const backoffMs = 750 * (attempt + 1);
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise(resolve => setTimeout(resolve, backoffMs));
+      }
+    }
+
+    throw lastError;
+  }
+
+  async makeSingleRequest(url) {
     return new Promise((resolve, reject) => {
       const protocol = url.startsWith('https') ? https : http;
 
-      protocol.get(url, (res) => {
+      const request = protocol.get(url, (res) => {
+        const statusCode = res.statusCode || 0;
+
+        // Handle redirects explicitly
+        if ([301, 302, 303, 307, 308].includes(statusCode) && res.headers.location) {
+          const redirectUrl = new URL(res.headers.location, url).toString();
+          res.resume();
+          this.makeSingleRequest(redirectUrl).then(resolve).catch(reject);
+          return;
+        }
+
         let data = '';
 
         res.on('data', (chunk) => {
@@ -80,14 +115,21 @@ class ScreenScraper {
         });
 
         res.on('end', () => {
+          if (statusCode >= 400) {
+            const preview = data.substring(0, 200).trim();
+            reject(new Error(`ScreenScraper request failed (${statusCode}): ${preview}`));
+            return;
+          }
+
           try {
             // Log response for debugging
             console.log('ScreenScraper Response:', data.substring(0, 500));
 
             const json = JSON.parse(data);
 
-            // Check for API errors
-            if (json.header && json.header.success === false) {
+            // Check for API errors (boolean or string)
+            const success = json?.header?.success;
+            if (success === false || success === 'false') {
               reject(new Error(json.header.error || 'API request failed'));
               return;
             }
@@ -106,7 +148,13 @@ class ScreenScraper {
             }
           }
         });
-      }).on('error', (error) => {
+      });
+
+      request.setTimeout(15000, () => {
+        request.destroy(new Error('ScreenScraper request timed out after 15s'));
+      });
+
+      request.on('error', (error) => {
         reject(error);
       });
     });
@@ -304,20 +352,56 @@ class ScreenScraper {
     return mediaUrls;
   }
 
-  async downloadImage(url, destPath) {
+  async downloadImage(url, destPath, maxRedirects = 3) {
     return new Promise((resolve, reject) => {
       const protocol = url.startsWith('https') ? https : http;
       const file = require('fs').createWriteStream(destPath);
 
-      protocol.get(url, (response) => {
+      const request = protocol.get(url, (response) => {
+        const statusCode = response.statusCode || 0;
+
+        if ([301, 302, 303, 307, 308].includes(statusCode) && response.headers.location) {
+          if (maxRedirects <= 0) {
+            file.close(() => require('fs').unlink(destPath, () => {}));
+            response.resume();
+            reject(new Error('Too many redirects while downloading artwork'));
+            return;
+          }
+
+          const redirectUrl = new URL(response.headers.location, url).toString();
+          response.resume();
+          file.close(() => require('fs').unlink(destPath, () => {}));
+          this.downloadImage(redirectUrl, destPath, maxRedirects - 1).then(resolve).catch(reject);
+          return;
+        }
+
+        if (statusCode < 200 || statusCode >= 300) {
+          const error = new Error(`Failed to download image (${statusCode})`);
+          file.close(() => require('fs').unlink(destPath, () => {}));
+          response.resume();
+          reject(error);
+          return;
+        }
+
         response.pipe(file);
 
         file.on('finish', () => {
           file.close();
           resolve(destPath);
         });
-      }).on('error', (error) => {
-        require('fs').unlink(destPath, () => {}); // Delete partial file
+      });
+
+      request.setTimeout(20000, () => {
+        request.destroy(new Error('Image download timed out after 20s'));
+      });
+
+      request.on('error', (error) => {
+        file.close(() => require('fs').unlink(destPath, () => {})); // Delete partial file
+        reject(error);
+      });
+
+      file.on('error', (error) => {
+        file.close(() => require('fs').unlink(destPath, () => {}));
         reject(error);
       });
     });
