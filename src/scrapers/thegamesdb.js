@@ -125,6 +125,51 @@ class TheGamesDB {
     return platformMap[systemName] || null;
   }
 
+  normalizeGameTitle(title) {
+    return String(title || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .replace(/\b(the|a|an)\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  chooseBestGameMatch(games, requestedName) {
+    if (!Array.isArray(games) || games.length === 0) {
+      return null;
+    }
+
+    const target = this.normalizeGameTitle(requestedName);
+    let best = games[0];
+    let bestScore = -1;
+
+    for (const game of games) {
+      const candidate = this.normalizeGameTitle(game.game_title);
+      let score = 0;
+
+      if (!candidate) {
+        // no-op
+      } else if (candidate === target) {
+        score = 100;
+      } else if (candidate.startsWith(target) || target.startsWith(candidate)) {
+        score = 80;
+      } else if (candidate.includes(target) || target.includes(candidate)) {
+        score = 60;
+      }
+
+      // Prefer titles close in length as a weak tie-breaker.
+      const lengthDelta = Math.abs(candidate.length - target.length);
+      score -= Math.min(lengthDelta, 30) * 0.2;
+
+      if (score > bestScore) {
+        best = game;
+        bestScore = score;
+      }
+    }
+
+    return best;
+  }
+
   async searchGameByName(gameName, systemName) {
     await this.waitForRateLimit();
 
@@ -149,9 +194,13 @@ class TheGamesDB {
       console.log('[TheGamesDB] Games found:', response.data?.games?.length || 0);
 
       if (response.data && response.data.games && response.data.games.length > 0) {
-        // Get the first match
-        const game = response.data.games[0];
-        console.log('[TheGamesDB] First match:', game.game_title);
+        const game = this.chooseBestGameMatch(response.data.games, gameName);
+        console.log('[TheGamesDB] Best match:', game?.game_title || 'none');
+
+        if (!game) {
+          return null;
+        }
+
         return await this.getGameDetails(game.id, response.data.base_url);
       }
 
@@ -256,20 +305,55 @@ class TheGamesDB {
     return mediaUrls;
   }
 
-  async downloadImage(url, destPath) {
+  async downloadImage(url, destPath, maxRedirects = 3) {
     return new Promise((resolve, reject) => {
       const protocol = url.startsWith('https') ? https : http;
       const file = require('fs').createWriteStream(destPath);
 
-      protocol.get(url, (response) => {
+      const request = protocol.get(url, (response) => {
+        const statusCode = response.statusCode || 0;
+
+        if ([301, 302, 303, 307, 308].includes(statusCode) && response.headers.location) {
+          if (maxRedirects <= 0) {
+            file.close(() => require('fs').unlink(destPath, () => {}));
+            response.resume();
+            reject(new Error('Too many redirects while downloading artwork'));
+            return;
+          }
+
+          const redirectUrl = new URL(response.headers.location, url).toString();
+          response.resume();
+          file.close(() => require('fs').unlink(destPath, () => {}));
+          this.downloadImage(redirectUrl, destPath, maxRedirects - 1).then(resolve).catch(reject);
+          return;
+        }
+
+        if (statusCode < 200 || statusCode >= 300) {
+          file.close(() => require('fs').unlink(destPath, () => {}));
+          response.resume();
+          reject(new Error(`Failed to download image (${statusCode})`));
+          return;
+        }
+
         response.pipe(file);
 
         file.on('finish', () => {
           file.close();
           resolve(destPath);
         });
-      }).on('error', (error) => {
-        require('fs').unlink(destPath, () => {}); // Delete partial file
+      });
+
+      request.setTimeout(20000, () => {
+        request.destroy(new Error('Image download timed out after 20s'));
+      });
+
+      request.on('error', (error) => {
+        file.close(() => require('fs').unlink(destPath, () => {}));
+        reject(error);
+      });
+
+      file.on('error', (error) => {
+        file.close(() => require('fs').unlink(destPath, () => {}));
         reject(error);
       });
     });
