@@ -46,21 +46,52 @@ class TheGamesDB {
     return url;
   }
 
-  async makeRequest(url) {
+  async makeRequest(url, maxRetries = 2) {
+    let lastError;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        return await this.makeSingleRequest(url);
+      } catch (error) {
+        lastError = error;
+
+        const isTransient = /timed out|socket hang up|ECONNRESET|ENOTFOUND|EAI_AGAIN|429|5\d\d/i.test(error.message);
+        if (!isTransient || attempt === maxRetries) {
+          throw error;
+        }
+
+        const backoffMs = 600 * (attempt + 1);
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise(resolve => setTimeout(resolve, backoffMs));
+      }
+    }
+
+    throw lastError;
+  }
+
+  async makeSingleRequest(url) {
     return new Promise((resolve, reject) => {
       const protocol = url.startsWith('https') ? https : http;
 
-      protocol.get(url, (res) => {
+      const request = protocol.get(url, (res) => {
+        const statusCode = res.statusCode || 0;
         let data = '';
 
         // Log HTTP status
-        console.log(`[TheGamesDB] HTTP Status: ${res.statusCode}`);
+        console.log(`[TheGamesDB] HTTP Status: ${statusCode}`);
 
         res.on('data', (chunk) => {
           data += chunk;
         });
 
         res.on('end', () => {
+          if (statusCode >= 400) {
+            const preview = data.substring(0, 200).trim();
+            reject(new Error(`TheGamesDB request failed (${statusCode}): ${preview}`));
+            return;
+          }
+
           try {
             console.log('[TheGamesDB] Response (first 500 chars):', data.substring(0, 500));
 
@@ -95,7 +126,13 @@ class TheGamesDB {
             reject(new Error(`Failed to parse API response: ${preview}...`));
           }
         });
-      }).on('error', (error) => {
+      });
+
+      request.setTimeout(15000, () => {
+        request.destroy(new Error('TheGamesDB request timed out after 15s'));
+      });
+
+      request.on('error', (error) => {
         console.error('[TheGamesDB] Network error:', error);
         reject(error);
       });
@@ -370,9 +407,11 @@ class TheGamesDB {
       }
 
       // Clean ROM name (remove extension and common tags)
-      const cleanName = path.basename(rom.filename, rom.extension)
+      const cleanName = path.basename(rom.filename, path.extname(rom.filename))
         .replace(/\(.*?\)/g, '') // Remove parentheses content
         .replace(/\[.*?\]/g, '') // Remove brackets content
+        .replace(/\b(v\d+(?:\.\d+)*)\b/gi, '') // Remove version tags like v1, v1.1
+        .replace(/\s+/g, ' ')
         .trim();
 
       console.log(`[TheGamesDB] Searching for: ${cleanName} (${rom.system})`);
