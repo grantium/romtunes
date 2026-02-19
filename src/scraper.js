@@ -243,11 +243,13 @@ class ScreenScraper {
   }
 
   parseGameInfo(jeu) {
+    const releaseDates = this.normalizeToArray(jeu.dates);
+
     const game = {
       id: jeu.id,
       name: this.getLocalizedText(jeu.noms),
       description: this.getLocalizedText(jeu.synopsis),
-      releaseDate: jeu.dates ? jeu.dates[0]?.text : null,
+      releaseDate: releaseDates[0]?.text || null,
       publisher: jeu.editeur?.text || null,
       developer: jeu.developpeur?.text || null,
       genre: this.getLocalizedText(jeu.genres),
@@ -264,17 +266,23 @@ class ScreenScraper {
     return game;
   }
 
+  normalizeToArray(value) {
+    if (!value) return [];
+    return Array.isArray(value) ? value : [value];
+  }
+
   getLocalizedText(textArray) {
-    if (!textArray || textArray.length === 0) return null;
+    const items = this.normalizeToArray(textArray);
+    if (items.length === 0) return null;
 
     // Prefer English, then region-free, then first available
-    const english = textArray.find(t => t.langue === 'en');
+    const english = items.find(t => t.langue === 'en');
     if (english) return english.text;
 
-    const regionFree = textArray.find(t => t.region === 'wor');
+    const regionFree = items.find(t => t.region === 'wor');
     if (regionFree) return regionFree.text;
 
-    return textArray[0]?.text || null;
+    return items[0]?.text || null;
   }
 
   extractMediaUrls(medias) {
@@ -292,7 +300,9 @@ class ScreenScraper {
     const fallbackRegions = boxartPrefs.fallbackRegions || ['wor', 'us', 'eu', 'jp'];
     const downloadAll = boxartPrefs.downloadAllVariants || false;
 
-    for (const media of medias) {
+    const mediaEntries = this.normalizeToArray(medias);
+
+    for (const media of mediaEntries) {
       const mediaType = media.type;
       const region = media.region || 'wor';
 
@@ -328,8 +338,10 @@ class ScreenScraper {
     const preferredStyle = boxartPrefs.preferredStyle || '2d';
     const boxartSource = preferredStyle === '3d' ? mediaUrls.boxart3d : mediaUrls.boxart2d;
 
+    const regionOrder = [preferredRegion, ...fallbackRegions].filter((region, index, list) => list.indexOf(region) === index);
+
     // Try preferred region first, then fallbacks
-    for (const region of [preferredRegion, ...fallbackRegions]) {
+    for (const region of regionOrder) {
       if (boxartSource[region]) {
         mediaUrls.boxart.primary = boxartSource[region];
         mediaUrls.boxart.region = region;
@@ -340,7 +352,7 @@ class ScreenScraper {
     // If no preferred style found, try the other style
     if (!mediaUrls.boxart.primary) {
       const altSource = preferredStyle === '3d' ? mediaUrls.boxart2d : mediaUrls.boxart3d;
-      for (const region of [preferredRegion, ...fallbackRegions]) {
+      for (const region of regionOrder) {
         if (altSource[region]) {
           mediaUrls.boxart.primary = altSource[region];
           mediaUrls.boxart.region = region;
@@ -471,8 +483,9 @@ class ScreenScraper {
             // Download best 2D variant
             const preferredRegion = boxartPrefs.preferredRegion || 'us';
             const fallbacks = boxartPrefs.fallbackRegions || ['wor', 'us', 'eu', 'jp'];
+            const regionOrder = [preferredRegion, ...fallbacks].filter((region, index, list) => list.indexOf(region) === index);
 
-            for (const region of [preferredRegion, ...fallbacks]) {
+            for (const region of regionOrder) {
               if (gameInfo.media.boxart2d[region]) {
                 await this.waitForRateLimit();
                 const artPath = this.config.getArtworkPath(rom.id, 'boxart') + '.2d.jpg';
@@ -483,7 +496,7 @@ class ScreenScraper {
             }
 
             // Download best 3D variant
-            for (const region of [preferredRegion, ...fallbacks]) {
+            for (const region of regionOrder) {
               if (gameInfo.media.boxart3d[region]) {
                 await this.waitForRateLimit();
                 const artPath = this.config.getArtworkPath(rom.id, 'boxart') + '.3d.jpg';
