@@ -46,21 +46,52 @@ class TheGamesDB {
     return url;
   }
 
-  async makeRequest(url) {
+  async makeRequest(url, maxRetries = 2) {
+    let lastError;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        return await this.makeSingleRequest(url);
+      } catch (error) {
+        lastError = error;
+
+        const isTransient = /timed out|socket hang up|ECONNRESET|ENOTFOUND|EAI_AGAIN|429|5\d\d/i.test(error.message);
+        if (!isTransient || attempt === maxRetries) {
+          throw error;
+        }
+
+        const backoffMs = 600 * (attempt + 1);
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise(resolve => setTimeout(resolve, backoffMs));
+      }
+    }
+
+    throw lastError;
+  }
+
+  async makeSingleRequest(url) {
     return new Promise((resolve, reject) => {
       const protocol = url.startsWith('https') ? https : http;
 
-      protocol.get(url, (res) => {
+      const request = protocol.get(url, (res) => {
+        const statusCode = res.statusCode || 0;
         let data = '';
 
         // Log HTTP status
-        console.log(`[TheGamesDB] HTTP Status: ${res.statusCode}`);
+        console.log(`[TheGamesDB] HTTP Status: ${statusCode}`);
 
         res.on('data', (chunk) => {
           data += chunk;
         });
 
         res.on('end', () => {
+          if (statusCode >= 400) {
+            const preview = data.substring(0, 200).trim();
+            reject(new Error(`TheGamesDB request failed (${statusCode}): ${preview}`));
+            return;
+          }
+
           try {
             console.log('[TheGamesDB] Response (first 500 chars):', data.substring(0, 500));
 
@@ -95,7 +126,13 @@ class TheGamesDB {
             reject(new Error(`Failed to parse API response: ${preview}...`));
           }
         });
-      }).on('error', (error) => {
+      });
+
+      request.setTimeout(15000, () => {
+        request.destroy(new Error('TheGamesDB request timed out after 15s'));
+      });
+
+      request.on('error', (error) => {
         console.error('[TheGamesDB] Network error:', error);
         reject(error);
       });
@@ -125,6 +162,51 @@ class TheGamesDB {
     return platformMap[systemName] || null;
   }
 
+  normalizeGameTitle(title) {
+    return String(title || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .replace(/\b(the|a|an)\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  chooseBestGameMatch(games, requestedName) {
+    if (!Array.isArray(games) || games.length === 0) {
+      return null;
+    }
+
+    const target = this.normalizeGameTitle(requestedName);
+    let best = games[0];
+    let bestScore = -1;
+
+    for (const game of games) {
+      const candidate = this.normalizeGameTitle(game.game_title);
+      let score = 0;
+
+      if (!candidate) {
+        // no-op
+      } else if (candidate === target) {
+        score = 100;
+      } else if (candidate.startsWith(target) || target.startsWith(candidate)) {
+        score = 80;
+      } else if (candidate.includes(target) || target.includes(candidate)) {
+        score = 60;
+      }
+
+      // Prefer titles close in length as a weak tie-breaker.
+      const lengthDelta = Math.abs(candidate.length - target.length);
+      score -= Math.min(lengthDelta, 30) * 0.2;
+
+      if (score > bestScore) {
+        best = game;
+        bestScore = score;
+      }
+    }
+
+    return best;
+  }
+
   async searchGameByName(gameName, systemName) {
     await this.waitForRateLimit();
 
@@ -149,9 +231,13 @@ class TheGamesDB {
       console.log('[TheGamesDB] Games found:', response.data?.games?.length || 0);
 
       if (response.data && response.data.games && response.data.games.length > 0) {
-        // Get the first match
-        const game = response.data.games[0];
-        console.log('[TheGamesDB] First match:', game.game_title);
+        const game = this.chooseBestGameMatch(response.data.games, gameName);
+        console.log('[TheGamesDB] Best match:', game?.game_title || 'none');
+
+        if (!game) {
+          return null;
+        }
+
         return await this.getGameDetails(game.id, response.data.base_url);
       }
 
@@ -256,20 +342,55 @@ class TheGamesDB {
     return mediaUrls;
   }
 
-  async downloadImage(url, destPath) {
+  async downloadImage(url, destPath, maxRedirects = 3) {
     return new Promise((resolve, reject) => {
       const protocol = url.startsWith('https') ? https : http;
       const file = require('fs').createWriteStream(destPath);
 
-      protocol.get(url, (response) => {
+      const request = protocol.get(url, (response) => {
+        const statusCode = response.statusCode || 0;
+
+        if ([301, 302, 303, 307, 308].includes(statusCode) && response.headers.location) {
+          if (maxRedirects <= 0) {
+            file.close(() => require('fs').unlink(destPath, () => {}));
+            response.resume();
+            reject(new Error('Too many redirects while downloading artwork'));
+            return;
+          }
+
+          const redirectUrl = new URL(response.headers.location, url).toString();
+          response.resume();
+          file.close(() => require('fs').unlink(destPath, () => {}));
+          this.downloadImage(redirectUrl, destPath, maxRedirects - 1).then(resolve).catch(reject);
+          return;
+        }
+
+        if (statusCode < 200 || statusCode >= 300) {
+          file.close(() => require('fs').unlink(destPath, () => {}));
+          response.resume();
+          reject(new Error(`Failed to download image (${statusCode})`));
+          return;
+        }
+
         response.pipe(file);
 
         file.on('finish', () => {
           file.close();
           resolve(destPath);
         });
-      }).on('error', (error) => {
-        require('fs').unlink(destPath, () => {}); // Delete partial file
+      });
+
+      request.setTimeout(20000, () => {
+        request.destroy(new Error('Image download timed out after 20s'));
+      });
+
+      request.on('error', (error) => {
+        file.close(() => require('fs').unlink(destPath, () => {}));
+        reject(error);
+      });
+
+      file.on('error', (error) => {
+        file.close(() => require('fs').unlink(destPath, () => {}));
         reject(error);
       });
     });
@@ -286,9 +407,11 @@ class TheGamesDB {
       }
 
       // Clean ROM name (remove extension and common tags)
-      const cleanName = path.basename(rom.filename, rom.extension)
+      const cleanName = path.basename(rom.filename, path.extname(rom.filename))
         .replace(/\(.*?\)/g, '') // Remove parentheses content
         .replace(/\[.*?\]/g, '') // Remove brackets content
+        .replace(/\b(v\d+(?:\.\d+)*)\b/gi, '') // Remove version tags like v1, v1.1
+        .replace(/\s+/g, ' ')
         .trim();
 
       console.log(`[TheGamesDB] Searching for: ${cleanName} (${rom.system})`);
