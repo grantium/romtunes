@@ -285,6 +285,11 @@ class ScreenScraper {
     return items[0]?.text || null;
   }
 
+  normalizeMediaUrl(url) {
+    if (!url || typeof url !== 'string') return null;
+    return url.trim().replace(/&amp;/g, '&');
+  }
+
   extractMediaUrls(medias) {
     const mediaUrls = {
       boxart: {},
@@ -305,31 +310,32 @@ class ScreenScraper {
     for (const media of mediaEntries) {
       const mediaType = media.type;
       const region = media.region || 'wor';
+      const mediaUrl = this.normalizeMediaUrl(media.url);
 
       // Handle different boxart types separately
       if (mediaType === 'box-2D') {
-        if (!mediaUrls.boxart2d[region] && media.url) {
-          mediaUrls.boxart2d[region] = media.url;
+        if (!mediaUrls.boxart2d[region] && mediaUrl) {
+          mediaUrls.boxart2d[region] = mediaUrl;
         }
       } else if (mediaType === 'box-3D') {
-        if (!mediaUrls.boxart3d[region] && media.url) {
-          mediaUrls.boxart3d[region] = media.url;
+        if (!mediaUrls.boxart3d[region] && mediaUrl) {
+          mediaUrls.boxart3d[region] = mediaUrl;
         }
       } else if (mediaType === 'box-2D-side' || mediaType === 'box-spine') {
-        if (!mediaUrls.boxart.spine && media.url) {
-          mediaUrls.boxart.spine = media.url;
+        if (!mediaUrls.boxart.spine && mediaUrl) {
+          mediaUrls.boxart.spine = mediaUrl;
         }
       } else if (mediaType === 'screenmarquee') {
-        if (!mediaUrls.banner && media.url) {
-          mediaUrls.banner = media.url;
+        if (!mediaUrls.banner && mediaUrl) {
+          mediaUrls.banner = mediaUrl;
         }
       } else if (mediaType === 'sstitle' || mediaType === 'ss') {
-        if (!mediaUrls.screenshot && media.url) {
-          mediaUrls.screenshot = media.url;
+        if (!mediaUrls.screenshot && mediaUrl) {
+          mediaUrls.screenshot = mediaUrl;
         }
       } else if (mediaType === 'fanart') {
-        if (!mediaUrls.fanart && media.url) {
-          mediaUrls.fanart = media.url;
+        if (!mediaUrls.fanart && mediaUrl) {
+          mediaUrls.fanart = mediaUrl;
         }
       }
     }
@@ -444,6 +450,17 @@ class ScreenScraper {
     }
   }
 
+  normalizeArtworkTypeForPath(artType) {
+    const artworkTypeMap = {
+      screenshot: 'screenshots',
+      banner: 'banners',
+      fanart: 'fanart',
+      boxart: 'boxart'
+    };
+
+    return artworkTypeMap[artType] || artType;
+  }
+
   async scrapeRom(rom, artworkTypes = ['boxart', 'screenshot']) {
     try {
       // Try filename search first
@@ -488,7 +505,7 @@ class ScreenScraper {
             for (const region of regionOrder) {
               if (gameInfo.media.boxart2d[region]) {
                 await this.waitForRateLimit();
-                const artPath = this.config.getArtworkPath(rom.id, 'boxart') + '.2d.jpg';
+                const artPath = this.config.getArtworkPath(rom.id, 'boxart', '2d');
                 await this.downloadImage(gameInfo.media.boxart2d[region], artPath);
                 downloadedArtwork.boxart2d = artPath;
                 break;
@@ -499,7 +516,7 @@ class ScreenScraper {
             for (const region of regionOrder) {
               if (gameInfo.media.boxart3d[region]) {
                 await this.waitForRateLimit();
-                const artPath = this.config.getArtworkPath(rom.id, 'boxart') + '.3d.jpg';
+                const artPath = this.config.getArtworkPath(rom.id, 'boxart', '3d');
                 await this.downloadImage(gameInfo.media.boxart3d[region], artPath);
                 downloadedArtwork.boxart3d = artPath;
                 break;
@@ -509,7 +526,8 @@ class ScreenScraper {
         } else if (gameInfo.media[artType]) {
           // Handle other artwork types (screenshot, banner, fanart)
           await this.waitForRateLimit();
-          const artPath = this.config.getArtworkPath(rom.id, artType);
+          const configArtworkType = this.normalizeArtworkTypeForPath(artType);
+          const artPath = this.config.getArtworkPath(rom.id, configArtworkType);
           await this.downloadImage(gameInfo.media[artType], artPath);
           downloadedArtwork[artType] = artPath;
         }
