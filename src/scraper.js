@@ -303,7 +303,6 @@ class ScreenScraper {
     const boxartPrefs = this.config.get('artwork.boxartPreferences') || {};
     const preferredRegion = boxartPrefs.preferredRegion || 'us';
     const fallbackRegions = boxartPrefs.fallbackRegions || ['wor', 'us', 'eu', 'jp'];
-    const downloadAll = boxartPrefs.downloadAllVariants || false;
 
     const mediaEntries = this.normalizeToArray(medias);
 
