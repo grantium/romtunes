@@ -308,38 +308,68 @@ class TheGamesDB {
       fanart: null
     };
 
-    const boxartPrefs = this.config.get('artwork.boxartPreferences') || {};
-    const preferredRegion = boxartPrefs.preferredRegion || 'us';
-
     // TheGamesDB uses 'front', 'back', 'banner', 'screenshot', 'fanart', etc.
+    // Prefer original images over thumbs when both are available.
     for (const artwork of boxartData) {
       const type = artwork.type;
       const side = artwork.side;
-      const filename = artwork.filename;
-      const fullUrl = `${baseUrl.images}${filename}`;
+      const fullUrl = this.getArtworkUrl(artwork, baseUrl);
+
+      if (!fullUrl) {
+        continue;
+      }
 
       if (type === 'boxart' && side === 'front') {
         // Store by region if available (though TheGamesDB doesn't specify regions as clearly)
-        if (!mediaUrls.boxart.primary) {
+        if (!mediaUrls.boxart.primary || this.isPreferredArtworkUrl(fullUrl, mediaUrls.boxart.primary)) {
           mediaUrls.boxart.primary = fullUrl;
           mediaUrls.boxart.region = 'us'; // Default assumption
         }
       } else if (type === 'boxart' && side === 'back') {
-        mediaUrls.boxart.back = fullUrl;
+        if (!mediaUrls.boxart.back || this.isPreferredArtworkUrl(fullUrl, mediaUrls.boxart.back)) {
+          mediaUrls.boxart.back = fullUrl;
+        }
       } else if (type === 'banner') {
-        mediaUrls.banner = fullUrl;
+        if (!mediaUrls.banner || this.isPreferredArtworkUrl(fullUrl, mediaUrls.banner)) {
+          mediaUrls.banner = fullUrl;
+        }
       } else if (type === 'screenshot') {
-        if (!mediaUrls.screenshot) {
+        if (!mediaUrls.screenshot || this.isPreferredArtworkUrl(fullUrl, mediaUrls.screenshot)) {
           mediaUrls.screenshot = fullUrl;
         }
       } else if (type === 'fanart') {
-        if (!mediaUrls.fanart) {
+        if (!mediaUrls.fanart || this.isPreferredArtworkUrl(fullUrl, mediaUrls.fanart)) {
           mediaUrls.fanart = fullUrl;
         }
       }
     }
 
     return mediaUrls;
+  }
+
+  getArtworkUrl(artwork, baseUrl) {
+    const baseImages = baseUrl?.images;
+    if (!baseImages) return null;
+
+    // Prefer original/full path keys when available; fall back to filename.
+    const relativePath = artwork.original || artwork.file || artwork.filename || artwork.thumb;
+    if (!relativePath) return null;
+
+    return `${baseImages}${relativePath}`;
+  }
+
+  isPreferredArtworkUrl(candidateUrl, currentUrl) {
+    if (!currentUrl) return true;
+
+    const candidateIsThumb = /\/thumb\//i.test(candidateUrl);
+    const currentIsThumb = /\/thumb\//i.test(currentUrl);
+
+    if (candidateIsThumb !== currentIsThumb) {
+      return !candidateIsThumb;
+    }
+
+    // Weak tie-breaker: prefer longer paths (often contain richer variants).
+    return candidateUrl.length > currentUrl.length;
   }
 
   async downloadImage(url, destPath, maxRedirects = 3) {
