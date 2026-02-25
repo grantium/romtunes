@@ -369,17 +369,23 @@ class ScreenScraper {
     return mediaUrls;
   }
 
+  isTransientDownloadError(error) {
+    return /timed out|socket hang up|ECONNRESET|ENOTFOUND|EAI_AGAIN|429|5\d\d/i.test(error.message);
+  }
+
   async downloadImage(url, destPath, maxRedirects = 3) {
     return new Promise((resolve, reject) => {
       const protocol = url.startsWith('https') ? https : http;
       const file = require('fs').createWriteStream(destPath);
+
+      const cleanupPartial = () => file.close(() => require('fs').unlink(destPath, () => {}));
 
       const request = protocol.get(url, (response) => {
         const statusCode = response.statusCode || 0;
 
         if ([301, 302, 303, 307, 308].includes(statusCode) && response.headers.location) {
           if (maxRedirects <= 0) {
-            file.close(() => require('fs').unlink(destPath, () => {}));
+            cleanupPartial();
             response.resume();
             reject(new Error('Too many redirects while downloading artwork'));
             return;
@@ -387,24 +393,46 @@ class ScreenScraper {
 
           const redirectUrl = new URL(response.headers.location, url).toString();
           response.resume();
-          file.close(() => require('fs').unlink(destPath, () => {}));
+          cleanupPartial();
           this.downloadImage(redirectUrl, destPath, maxRedirects - 1).then(resolve).catch(reject);
           return;
         }
 
         if (statusCode < 200 || statusCode >= 300) {
           const error = new Error(`Failed to download image (${statusCode})`);
-          file.close(() => require('fs').unlink(destPath, () => {}));
+          cleanupPartial();
           response.resume();
           reject(error);
           return;
         }
 
+        const contentType = String(response.headers['content-type'] || '').toLowerCase();
+        const isImage = contentType.startsWith('image/');
+        const isGenericBinary = contentType.includes('application/octet-stream');
+        if (contentType && !isImage && !isGenericBinary) {
+          cleanupPartial();
+          response.resume();
+          reject(new Error(`Artwork URL did not return an image (content-type: ${contentType})`));
+          return;
+        }
+
         response.pipe(file);
 
-        file.on('finish', () => {
+        file.on('finish', async () => {
           file.close();
-          resolve(destPath);
+
+          try {
+            const stats = await fs.stat(destPath);
+            if (stats.size === 0) {
+              require('fs').unlink(destPath, () => {});
+              reject(new Error('Downloaded image was empty'));
+              return;
+            }
+
+            resolve(destPath);
+          } catch (error) {
+            reject(error);
+          }
         });
       });
 
@@ -413,15 +441,39 @@ class ScreenScraper {
       });
 
       request.on('error', (error) => {
-        file.close(() => require('fs').unlink(destPath, () => {})); // Delete partial file
+        cleanupPartial(); // Delete partial file
         reject(error);
       });
 
       file.on('error', (error) => {
-        file.close(() => require('fs').unlink(destPath, () => {}));
+        cleanupPartial();
         reject(error);
       });
     });
+  }
+
+  async downloadImageWithRetries(url, destPath, maxRetries = 2) {
+    let lastError;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        return await this.downloadImage(url, destPath);
+      } catch (error) {
+        lastError = error;
+
+        const shouldRetry = this.isTransientDownloadError(error);
+        if (!shouldRetry || attempt === maxRetries) {
+          throw error;
+        }
+
+        const backoffMs = 800 * (attempt + 1);
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise(resolve => setTimeout(resolve, backoffMs));
+      }
+    }
+
+    throw lastError;
   }
 
   async calculateCRC32(filePath) {
@@ -489,7 +541,7 @@ class ScreenScraper {
           if (gameInfo.media.boxart.primary) {
             await this.waitForRateLimit();
             const artPath = this.config.getArtworkPath(rom.id, 'boxart');
-            await this.downloadImage(gameInfo.media.boxart.primary, artPath);
+            await this.downloadImageWithRetries(gameInfo.media.boxart.primary, artPath);
             downloadedArtwork.boxart = artPath;
             downloadedArtwork.boxartRegion = gameInfo.media.boxart.region || 'unknown';
           }
@@ -505,7 +557,7 @@ class ScreenScraper {
               if (gameInfo.media.boxart2d[region]) {
                 await this.waitForRateLimit();
                 const artPath = this.config.getArtworkPath(rom.id, 'boxart', '2d');
-                await this.downloadImage(gameInfo.media.boxart2d[region], artPath);
+                await this.downloadImageWithRetries(gameInfo.media.boxart2d[region], artPath);
                 downloadedArtwork.boxart2d = artPath;
                 break;
               }
@@ -516,7 +568,7 @@ class ScreenScraper {
               if (gameInfo.media.boxart3d[region]) {
                 await this.waitForRateLimit();
                 const artPath = this.config.getArtworkPath(rom.id, 'boxart', '3d');
-                await this.downloadImage(gameInfo.media.boxart3d[region], artPath);
+                await this.downloadImageWithRetries(gameInfo.media.boxart3d[region], artPath);
                 downloadedArtwork.boxart3d = artPath;
                 break;
               }
@@ -527,7 +579,7 @@ class ScreenScraper {
           await this.waitForRateLimit();
           const configArtworkType = this.normalizeArtworkTypeForPath(artType);
           const artPath = this.config.getArtworkPath(rom.id, configArtworkType);
-          await this.downloadImage(gameInfo.media[artType], artPath);
+          await this.downloadImageWithRetries(gameInfo.media[artType], artPath);
           downloadedArtwork[artType] = artPath;
         }
       }
