@@ -287,7 +287,15 @@ class ScreenScraper {
 
   normalizeMediaUrl(url) {
     if (!url || typeof url !== 'string') return null;
-    return url.trim().replace(/&amp;/g, '&');
+
+    const normalized = url.trim().replace(/&amp;/g, '&');
+
+    // ScreenScraper can sometimes return protocol-relative URLs (//...)
+    if (normalized.startsWith('//')) {
+      return `https:${normalized}`;
+    }
+
+    return normalized;
   }
 
   extractMediaUrls(medias) {
@@ -367,6 +375,52 @@ class ScreenScraper {
     }
 
     return mediaUrls;
+  }
+
+  getBoxartCandidateUrls(gameInfo, boxartPrefs = {}) {
+    const preferredRegion = boxartPrefs.preferredRegion || 'us';
+    const fallbacks = boxartPrefs.fallbackRegions || ['wor', 'us', 'eu', 'jp'];
+    const preferredStyle = boxartPrefs.preferredStyle || '2d';
+
+    const regionOrder = [preferredRegion, ...fallbacks]
+      .filter((region, index, list) => list.indexOf(region) === index);
+
+    const styleOrder = preferredStyle === '3d' ? ['3d', '2d'] : ['2d', '3d'];
+    const candidates = [];
+
+    for (const style of styleOrder) {
+      const source = style === '3d' ? gameInfo.media.boxart3d : gameInfo.media.boxart2d;
+      for (const region of regionOrder) {
+        const url = source?.[region];
+        if (url) {
+          candidates.push({ url, style, region });
+        }
+      }
+    }
+
+    return candidates;
+  }
+
+  async downloadFirstAvailableArtwork(candidates, destPath) {
+    let lastError = null;
+
+    for (const candidate of candidates) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await this.waitForRateLimit();
+        // eslint-disable-next-line no-await-in-loop
+        await this.downloadImageWithRetries(candidate.url, destPath);
+        return candidate;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (lastError) {
+      throw lastError;
+    }
+
+    return null;
   }
 
   isTransientDownloadError(error) {
@@ -535,20 +589,22 @@ class ScreenScraper {
       const downloadAll = boxartPrefs.downloadAllVariants || false;
 
       for (const artType of artworkTypes) {
-        // Handle boxart with variants
+        // Handle boxart with robust fallbacks across style + region
         if (artType === 'boxart') {
-          // Download primary (preferred) boxart
-          if (gameInfo.media.boxart.primary) {
-            await this.waitForRateLimit();
-            const artPath = this.config.getArtworkPath(rom.id, 'boxart');
-            await this.downloadImageWithRetries(gameInfo.media.boxart.primary, artPath);
-            downloadedArtwork.boxart = artPath;
-            downloadedArtwork.boxartRegion = gameInfo.media.boxart.region || 'unknown';
+          const artPath = this.config.getArtworkPath(rom.id, 'boxart');
+          const candidates = this.getBoxartCandidateUrls(gameInfo, boxartPrefs);
+
+          if (candidates.length > 0) {
+            const selected = await this.downloadFirstAvailableArtwork(candidates, artPath);
+            if (selected) {
+              downloadedArtwork.boxart = artPath;
+              downloadedArtwork.boxartRegion = selected.region || 'unknown';
+              downloadedArtwork.boxartStyle = selected.style || 'unknown';
+            }
           }
 
           // Optionally download all variants
           if (downloadAll) {
-            // Download best 2D variant
             const preferredRegion = boxartPrefs.preferredRegion || 'us';
             const fallbacks = boxartPrefs.fallbackRegions || ['wor', 'us', 'eu', 'jp'];
             const regionOrder = [preferredRegion, ...fallbacks].filter((region, index, list) => list.indexOf(region) === index);
@@ -556,20 +612,19 @@ class ScreenScraper {
             for (const region of regionOrder) {
               if (gameInfo.media.boxart2d[region]) {
                 await this.waitForRateLimit();
-                const artPath = this.config.getArtworkPath(rom.id, 'boxart', '2d');
-                await this.downloadImageWithRetries(gameInfo.media.boxart2d[region], artPath);
-                downloadedArtwork.boxart2d = artPath;
+                const variantPath = this.config.getArtworkPath(rom.id, 'boxart', '2d');
+                await this.downloadImageWithRetries(gameInfo.media.boxart2d[region], variantPath);
+                downloadedArtwork.boxart2d = variantPath;
                 break;
               }
             }
 
-            // Download best 3D variant
             for (const region of regionOrder) {
               if (gameInfo.media.boxart3d[region]) {
                 await this.waitForRateLimit();
-                const artPath = this.config.getArtworkPath(rom.id, 'boxart', '3d');
-                await this.downloadImageWithRetries(gameInfo.media.boxart3d[region], artPath);
-                downloadedArtwork.boxart3d = artPath;
+                const variantPath = this.config.getArtworkPath(rom.id, 'boxart', '3d');
+                await this.downloadImageWithRetries(gameInfo.media.boxart3d[region], variantPath);
+                downloadedArtwork.boxart3d = variantPath;
                 break;
               }
             }
