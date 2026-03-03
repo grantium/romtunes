@@ -2,6 +2,7 @@ const https = require('https');
 const http = require('http');
 const fs = require('fs').promises;
 const path = require('path');
+const zlib = require('zlib');
 
 class TheGamesDB {
   constructor(config) {
@@ -70,22 +71,47 @@ class TheGamesDB {
     throw lastError;
   }
 
+  decodeResponseBuffer(buffer, encoding = '') {
+    const normalized = String(encoding || '').toLowerCase();
+
+    try {
+      if (normalized.includes('gzip')) return zlib.gunzipSync(buffer);
+      if (normalized.includes('deflate')) return zlib.inflateSync(buffer);
+      if (normalized.includes('br')) return zlib.brotliDecompressSync(buffer);
+    } catch (error) {
+      throw new Error(`Failed to decompress TheGamesDB response (${normalized}): ${error.message}`);
+    }
+
+    return buffer;
+  }
+
   async makeSingleRequest(url) {
     return new Promise((resolve, reject) => {
       const protocol = url.startsWith('https') ? https : http;
 
       const request = protocol.get(url, (res) => {
         const statusCode = res.statusCode || 0;
-        let data = '';
+        const chunks = [];
 
         // Log HTTP status
         console.log(`[TheGamesDB] HTTP Status: ${statusCode}`);
 
         res.on('data', (chunk) => {
-          data += chunk;
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
         });
 
         res.on('end', () => {
+          const raw = Buffer.concat(chunks);
+          let data;
+
+          try {
+            const decoded = this.decodeResponseBuffer(raw, res.headers['content-encoding']);
+            data = decoded.toString('utf8');
+          } catch (error) {
+            reject(error);
+            return;
+          }
+
           if (statusCode >= 400) {
             const preview = data.substring(0, 200).trim();
             reject(new Error(`TheGamesDB request failed (${statusCode}): ${preview}`));
