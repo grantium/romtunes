@@ -3,6 +3,7 @@ const http = require('http');
 const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
+const zlib = require('zlib');
 
 class ScreenScraper {
   constructor(config) {
@@ -93,6 +94,20 @@ class ScreenScraper {
     throw lastError;
   }
 
+  decodeResponseBuffer(buffer, encoding = '') {
+    const normalized = String(encoding || '').toLowerCase();
+
+    try {
+      if (normalized.includes('gzip')) return zlib.gunzipSync(buffer);
+      if (normalized.includes('deflate')) return zlib.inflateSync(buffer);
+      if (normalized.includes('br')) return zlib.brotliDecompressSync(buffer);
+    } catch (error) {
+      throw new Error(`Failed to decompress ScreenScraper response (${normalized}): ${error.message}`);
+    }
+
+    return buffer;
+  }
+
   async makeSingleRequest(url) {
     return new Promise((resolve, reject) => {
       const protocol = url.startsWith('https') ? https : http;
@@ -108,13 +123,24 @@ class ScreenScraper {
           return;
         }
 
-        let data = '';
+        const chunks = [];
 
         res.on('data', (chunk) => {
-          data += chunk;
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
         });
 
         res.on('end', () => {
+          const raw = Buffer.concat(chunks);
+          let data;
+
+          try {
+            const decoded = this.decodeResponseBuffer(raw, res.headers['content-encoding']);
+            data = decoded.toString('utf8');
+          } catch (error) {
+            reject(error);
+            return;
+          }
+
           if (statusCode >= 400) {
             const preview = data.substring(0, 200).trim();
             reject(new Error(`ScreenScraper request failed (${statusCode}): ${preview}`));
