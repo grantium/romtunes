@@ -413,13 +413,15 @@ class ScreenScraper {
 
     const styleOrder = preferredStyle === '3d' ? ['3d', '2d'] : ['2d', '3d'];
     const candidates = [];
+    const seenUrls = new Set();
 
     for (const style of styleOrder) {
       const source = style === '3d' ? gameInfo.media.boxart3d : gameInfo.media.boxart2d;
       for (const region of regionOrder) {
         const url = source?.[region];
-        if (url) {
+        if (url && !seenUrls.has(url)) {
           candidates.push({ url, style, region });
+          seenUrls.add(url);
         }
       }
     }
@@ -637,21 +639,29 @@ class ScreenScraper {
 
             for (const region of regionOrder) {
               if (gameInfo.media.boxart2d[region]) {
-                await this.waitForRateLimit();
-                const variantPath = this.config.getArtworkPath(rom.id, 'boxart', '2d');
-                await this.downloadImageWithRetries(gameInfo.media.boxart2d[region], variantPath);
-                downloadedArtwork.boxart2d = variantPath;
-                break;
+                try {
+                  await this.waitForRateLimit();
+                  const variantPath = this.config.getArtworkPath(rom.id, 'boxart', '2d');
+                  await this.downloadImageWithRetries(gameInfo.media.boxart2d[region], variantPath);
+                  downloadedArtwork.boxart2d = variantPath;
+                  break;
+                } catch (error) {
+                  console.warn(`[ScreenScraper] Failed downloading 2D boxart for region ${region}: ${error.message}`);
+                }
               }
             }
 
             for (const region of regionOrder) {
               if (gameInfo.media.boxart3d[region]) {
-                await this.waitForRateLimit();
-                const variantPath = this.config.getArtworkPath(rom.id, 'boxart', '3d');
-                await this.downloadImageWithRetries(gameInfo.media.boxart3d[region], variantPath);
-                downloadedArtwork.boxart3d = variantPath;
-                break;
+                try {
+                  await this.waitForRateLimit();
+                  const variantPath = this.config.getArtworkPath(rom.id, 'boxart', '3d');
+                  await this.downloadImageWithRetries(gameInfo.media.boxart3d[region], variantPath);
+                  downloadedArtwork.boxart3d = variantPath;
+                  break;
+                } catch (error) {
+                  console.warn(`[ScreenScraper] Failed downloading 3D boxart for region ${region}: ${error.message}`);
+                }
               }
             }
           }

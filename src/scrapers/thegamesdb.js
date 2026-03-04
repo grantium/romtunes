@@ -42,7 +42,7 @@ class TheGamesDB {
       .join('&');
 
     const url = `${this.baseUrl}/${endpoint}?${queryString}`;
-    console.log('[TheGamesDB] API URL:', url);
+    console.log('[TheGamesDB] API URL:', url.replace(/apikey=[^&]+/, 'apikey=***'));
 
     return url;
   }
