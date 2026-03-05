@@ -89,7 +89,13 @@ class TheGamesDB {
     return new Promise((resolve, reject) => {
       const protocol = url.startsWith('https') ? https : http;
 
-      const request = protocol.get(url, (res) => {
+      const request = protocol.get(url, {
+        headers: {
+          'User-Agent': 'RomTunes/1.0 (+https://github.com/grantium/romtunes)',
+          'Accept': 'application/json,text/plain;q=0.9,*/*;q=0.8',
+          'Accept-Encoding': 'gzip, deflate, br'
+        }
+      }, (res) => {
         const statusCode = res.statusCode || 0;
         const chunks = [];
 
@@ -375,13 +381,20 @@ class TheGamesDB {
 
   getArtworkUrl(artwork, baseUrl) {
     const baseImages = baseUrl?.images;
-    if (!baseImages) return null;
 
     // Prefer original/full path keys when available; fall back to filename.
     const relativePath = artwork.original || artwork.file || artwork.filename || artwork.thumb;
     if (!relativePath) return null;
 
-    return `${baseImages}${relativePath}`;
+    if (/^https?:\/\//i.test(relativePath)) {
+      return relativePath;
+    }
+
+    if (!baseImages) return null;
+
+    const joinedBase = String(baseImages).replace(/\/+$/, '');
+    const joinedPath = String(relativePath).replace(/^\/+/, '');
+    return `${joinedBase}/${joinedPath}`;
   }
 
   isPreferredArtworkUrl(candidateUrl, currentUrl) {
@@ -409,7 +422,13 @@ class TheGamesDB {
 
       const cleanupPartial = () => file.close(() => require('fs').unlink(destPath, () => {}));
 
-      const request = protocol.get(url, (response) => {
+      const request = protocol.get(url, {
+        headers: {
+          'User-Agent': 'RomTunes/1.0 (+https://github.com/grantium/romtunes)',
+          'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+          'Accept-Encoding': 'identity'
+        }
+      }, (response) => {
         const statusCode = response.statusCode || 0;
 
         if ([301, 302, 303, 307, 308].includes(statusCode) && response.headers.location) {
