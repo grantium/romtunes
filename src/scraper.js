@@ -112,7 +112,13 @@ class ScreenScraper {
     return new Promise((resolve, reject) => {
       const protocol = url.startsWith('https') ? https : http;
 
-      const request = protocol.get(url, (res) => {
+      const request = protocol.get(url, {
+        headers: {
+          'User-Agent': 'RomTunes/1.0 (+https://github.com/grantium/romtunes)',
+          'Accept': 'application/json,text/plain;q=0.9,*/*;q=0.8',
+          'Accept-Encoding': 'gzip, deflate, br'
+        }
+      }, (res) => {
         const statusCode = res.statusCode || 0;
 
         // Handle redirects explicitly
@@ -462,7 +468,13 @@ class ScreenScraper {
 
       const cleanupPartial = () => file.close(() => require('fs').unlink(destPath, () => {}));
 
-      const request = protocol.get(url, (response) => {
+      const request = protocol.get(url, {
+        headers: {
+          'User-Agent': 'RomTunes/1.0 (+https://github.com/grantium/romtunes)',
+          'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+          'Accept-Encoding': 'identity'
+        }
+      }, (response) => {
         const statusCode = response.statusCode || 0;
 
         if ([301, 302, 303, 307, 308].includes(statusCode) && response.headers.location) {
