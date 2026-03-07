@@ -411,6 +411,17 @@ class TheGamesDB {
     return candidateUrl.length > currentUrl.length;
   }
 
+  normalizeArtworkTypeForPath(artType) {
+    const artworkTypeMap = {
+      screenshot: 'screenshots',
+      banner: 'banners',
+      fanart: 'fanart',
+      boxart: 'boxart'
+    };
+
+    return artworkTypeMap[artType] || artType;
+  }
+
   isTransientDownloadError(error) {
     return /timed out|socket hang up|ECONNRESET|ENOTFOUND|EAI_AGAIN|429|5\d\d/i.test(error.message);
   }
@@ -563,7 +574,8 @@ class TheGamesDB {
           downloadedArtwork.boxartRegion = gameInfo.media.boxart.region || 'us';
         } else if (gameInfo.media[artType]) {
           await this.waitForRateLimit();
-          const artPath = this.config.getArtworkPath(rom.id, artType);
+          const configArtworkType = this.normalizeArtworkTypeForPath(artType);
+          const artPath = this.config.getArtworkPath(rom.id, configArtworkType);
           await this.downloadImageWithRetries(gameInfo.media[artType], artPath);
           downloadedArtwork[artType] = artPath;
         }
