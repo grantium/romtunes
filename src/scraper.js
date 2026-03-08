@@ -226,6 +226,9 @@ class ScreenScraper {
     const cleanName = path.basename(filename, path.extname(filename))
       .replace(/\(.*?\)/g, '') // Remove parentheses content
       .replace(/\[.*?\]/g, '') // Remove brackets content
+      .replace(/\b(v\d+(?:\.\d+)*)\b/gi, '') // Remove version tags like v1, v1.1
+      .replace(/[._-]+/g, ' ') // Normalize separators to improve search quality
+      .replace(/\s+/g, ' ')
       .trim();
 
     const url = this.buildUrl('jeuInfos', {
@@ -347,20 +350,20 @@ class ScreenScraper {
     const mediaEntries = this.normalizeToArray(medias);
 
     for (const media of mediaEntries) {
-      const mediaType = media.type;
-      const region = media.region || 'wor';
+      const mediaType = String(media.type || '').toLowerCase();
+      const region = String(media.region || 'wor').toLowerCase();
       const mediaUrl = this.normalizeMediaUrl(media.url);
 
       // Handle different boxart types separately
-      if (mediaType === 'box-2D') {
+      if (mediaType === 'box-2d') {
         if (!mediaUrls.boxart2d[region] && mediaUrl) {
           mediaUrls.boxart2d[region] = mediaUrl;
         }
-      } else if (mediaType === 'box-3D') {
+      } else if (mediaType === 'box-3d') {
         if (!mediaUrls.boxart3d[region] && mediaUrl) {
           mediaUrls.boxart3d[region] = mediaUrl;
         }
-      } else if (mediaType === 'box-2D-side' || mediaType === 'box-spine') {
+      } else if (mediaType === 'box-2d-side' || mediaType === 'box-spine') {
         if (!mediaUrls.boxart.spine && mediaUrl) {
           mediaUrls.boxart.spine = mediaUrl;
         }
