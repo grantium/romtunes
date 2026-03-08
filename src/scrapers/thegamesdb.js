@@ -549,6 +549,7 @@ class TheGamesDB {
         .replace(/\(.*?\)/g, '') // Remove parentheses content
         .replace(/\[.*?\]/g, '') // Remove brackets content
         .replace(/\b(v\d+(?:\.\d+)*)\b/gi, '') // Remove version tags like v1, v1.1
+        .replace(/[._-]+/g, ' ') // Normalize separators to improve search quality
         .replace(/\s+/g, ' ')
         .trim();
 
